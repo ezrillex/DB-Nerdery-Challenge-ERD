@@ -1,0 +1,171 @@
+
+Enum user_types {
+  manager
+  client
+  anonymous
+}
+
+Enum permissions {
+  create
+  update
+  delete
+  disable
+  view_all
+  view_self
+  upload
+}
+
+Enum pay_status{
+  pending
+  paid
+  cancelled
+  refunded
+  partially_refunded
+}
+
+Enum order_status {
+  pending_fulfillment
+  fulfillment_in_progress
+  shipped
+  delivered
+  delivery_cancelled
+  returned
+}
+
+Enum queue_status {
+  pending
+  in_progress
+  success
+  failed
+}
+
+Table users {
+  id integer [primary key]
+  first_name varchar [not null]
+  last_name varchar [not null]
+  email email [not null]
+  type user_types [default: 'client']
+  created_at timestamp [default: 'now()']
+  last_login_at timestamp [null, note: 'lets assume the user has a session token and that is handled by the app.']
+  last_signout_at timestamp [null]
+  password_hash char(32) [not null, note: 'md5 + salt']
+  failed_login_attempts integer [default: 0]
+  password_reset_token varchar [null]
+  password_reset_requests integer [default: 0]
+  password_reset_requests_tiemstamps timestamp[] 
+}
+
+Table products {
+  id integer [primary key]
+  disabled boolean [default: true]
+  name varchar [not null]
+  details varchar [not null]
+  category_id integer [null]
+  price numeric [not null, default: 0]
+  stock int [not null, default: 0]
+  created_by integer [not null]
+  created_at timestamp [default: 'now()']
+  last_updated_by integer [null]
+  last_updated_at timestamp [null]
+  images integer[] [null]
+}
+
+Table files {
+  id integer [primary key]
+  url varchar [note: 'URL TO THE CDN HOSTED FILE']
+}
+
+// the existence of a product here means there is a like.
+Table likes {
+  id integer [primary key]
+  client_id integer [not null]
+  product_id integer [not null]
+}
+ 
+Table categories {
+  id integer [primary key]
+  name varchar [not null]
+}
+
+// calls made to endpoints from users have to first query if there is a permission setup for the action they are trying to perform
+Table permits {
+  id integer [primary key]
+  role user_types [not null]
+  permit permissions [not null]
+  has_permit boolean [not null]
+  for_table varchar [not null]
+}
+
+Table cart {
+  id integer [primary key]
+  client_id integer [not null]
+  product_id integer unique [not null]
+  product_qty integer [not null, default: 1, note: 'assume we don-t sell fractions like a supermarket (0.5 kg of beef i.e.)'] 
+  added_at timestamp [not null, default: 'now()']
+}
+
+Table orders {
+  id integer [primary key]
+  client_id integer [not null]
+  payment_id integer[] [null]
+  payment_request_id integer[] [not null]
+  order_details_id integer[] [not null]
+  payment_status pay_status [default: 'pending']
+  status order_status [default: 'pending_fulfillment']
+}
+
+Table order_details {
+  id integer [primary key]
+  order_id integer [not null]
+  product_id integer [not null]
+  product_qty integer [not null]
+  created_at timestamp [default: 'now()']
+}
+// webhook calls go here
+Table payments_queue {
+  id integer [primary key]
+  status queue_status [default: 'pending']
+  created_at timestamp [not null, default: 'now()']
+  stripe_event_id varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_api_version varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_data JSON [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_event_request JSON [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_event_type varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_object varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_created integer [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_other hstore [not null]
+}
+// we save our payment requests here
+Table payment_requests {
+  id integer [primary key]
+  request JSON [not null]
+}
+
+// consumed by mailer worker
+Table email_queue {
+  id integer [primary key]
+  status queue_status [not null, default: 'pending']
+  sender_name varchar [null]
+  sender_address email [not null]
+  recipient_name varchar [null]
+  recipient_address email [not null]
+  reply_to email [null]
+  subject varchar [not null]
+  text_content varchar [null, note: 'we need the app to check if the other is null, both cant be null']
+  html_content varchar [null, note: 'we need the app to check if the other is null, both cant be null']
+  attachments integer[] [null]
+}
+
+Ref: likes.client_id > users.id 
+Ref: likes.product_id > products.id
+Ref: users.id < products.created_by 
+Ref: categories.id <> products.category_id
+Ref: cart.client_id - users.id
+Ref: cart.product_id > products.id
+Ref: orders.order_details_id < order_details.order_id
+Ref: users.id < orders.id
+Ref: email_queue.attachments <> files.id
+Ref: products.images <> files.id
+Ref: orders.payment_id < payments_queue.id
+Ref: order_details.product_id > products.id
+Ref: orders.payment_request_id < payment_requests.id
