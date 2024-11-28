@@ -1,4 +1,5 @@
-Nerdery DB Challange \#3 \- ERD.
+## Nerdery DB Challange \#3 \- ERD.
+![Proposed Diagram](/ERD-Diagram.png)  
 
 Available in dbdiagram.io [https://dbdiagram.io/d/nerdery_challenge_3-674890aae9daa85aca0aa678](https://dbdiagram.io/d/nerdery_challenge_3-674890aae9daa85aca0aa678)
 
