@@ -6,7 +6,7 @@ Available in dbdiagram.io [https://dbdiagram.io/d/nerdery_challenge_3-674890aae9
 
 1\. Authentication endpoints (sign up, sign in, sign out, forgot, reset password)  
 The users follow the user lifecycle which covers the mentioned operations.   
-![User Lifecyle][./image1.png]  
+![User Lifecyle](/image1.png)  
 Here is how each step of the lifecycle interacts with the proposed database.
 
 1. Sign-up. The user fills out a form in a registration screen. When submitted the application creates a row in the **users** table. The app must hash+salt the password that is sent. The app must create a queue item on the **email\_queue** with a welcome email to the user. (Some actions could be done by a trigger but to focus on the DB lets assume the app handles such actions). If the user is of type ‘Manager’ this has to be set by the system administrator by updating the type of user to ‘manager’.   
