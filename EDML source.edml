@@ -1,20 +1,24 @@
 
-Enum user_types {
-  manager
-  client
-  anonymous
-}
 
-Enum permissions {
+Table roles {
+  id integer [primary key]
+  role_name varchar
+}
+/*example values
   create
   update
   delete
   disable
   view_all
   view_self
-  upload
+  upload*/
+Table permissions {
+  id integer [primary key]
+  name varchar [not null]
+  applies_to_table varchar [not null]
+  applies_to_column varchar [null, default: 'if null then access to whole row?']
 }
-
+/*
 Enum pay_status{
   pending
   paid
@@ -39,12 +43,28 @@ Enum queue_status {
   failed
 }
 
+Payments statuses:
+requirements_payment_method
+requires_confirmation
+requires_action
+processing
+succeded
+cancelled
+*/
+
+Table statuses {
+  id integer [primary key]
+  name varchar [not null]
+  owner varchar [not null, note: 'what table uses it, more for data entry']
+}
+
+
 Table users {
   id integer [primary key]
   first_name varchar [not null]
   last_name varchar [not null]
   email email [not null]
-  type user_types [default: 'client']
+  role_id integer [not null, default: 1]
   created_at timestamp [default: 'now()']
   last_login_at timestamp [null, note: 'lets assume the user has a session token and that is handled by the app.']
   last_signout_at timestamp [null]
@@ -52,7 +72,7 @@ Table users {
   failed_login_attempts integer [default: 0]
   password_reset_token varchar [null]
   password_reset_requests integer [default: 0]
-  password_reset_requests_tiemstamps timestamp[] 
+  password_reset_requests_tiemstamps timestamp[]
 }
 
 Table products {
@@ -60,7 +80,7 @@ Table products {
   disabled boolean [default: true]
   name varchar [not null]
   details varchar [not null]
-  category_id integer [null]
+  category_id integer[] [null]
   price numeric [not null, default: 0]
   stock int [not null, default: 0]
   created_by integer [not null]
@@ -81,7 +101,7 @@ Table likes {
   client_id integer [not null]
   product_id integer [not null]
 }
- 
+
 Table categories {
   id integer [primary key]
   name varchar [not null]
@@ -90,17 +110,16 @@ Table categories {
 // calls made to endpoints from users have to first query if there is a permission setup for the action they are trying to perform
 Table permits {
   id integer [primary key]
-  role user_types [not null]
-  permit permissions [not null]
-  has_permit boolean [not null]
-  for_table varchar [not null]
+  role_id integer [not null]
+  permit integer [not null]
+  is_allowed boolean [not null]
 }
 
 Table cart {
   id integer [primary key]
   client_id integer [not null]
   product_id integer unique [not null]
-  product_qty integer [not null, default: 1, note: 'assume we don-t sell fractions like a supermarket (0.5 kg of beef i.e.)'] 
+  product_qty integer [not null, default: 1, note: 'assume we don-t sell fractions like a supermarket (0.5 kg of beef i.e.)']
   added_at timestamp [not null, default: 'now()']
 }
 
@@ -110,8 +129,8 @@ Table orders {
   payment_id integer[] [null]
   payment_request_id integer[] [not null]
   order_details_id integer[] [not null]
-  payment_status pay_status [default: 'pending']
-  status order_status [default: 'pending_fulfillment']
+  payment_status integer [not null, default: 'id of pending']
+  order_status integer [not null, default: 'pending_fulfillment']
 }
 
 Table order_details {
@@ -122,29 +141,25 @@ Table order_details {
   created_at timestamp [default: 'now()']
 }
 // webhook calls go here
-Table payments_queue {
+Table payments {
   id integer [primary key]
-  status queue_status [default: 'pending']
+  payment_status integer [not null, default: 'pending id']
   created_at timestamp [not null, default: 'now()']
   stripe_event_id varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
   stripe_api_version varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_data JSON [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_event_request JSON [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_event_response JSON [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
+  stripe_event_request JSON [not null, note: 'the request that is sent']
   stripe_event_type varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
   stripe_object varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
   stripe_created integer [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
   stripe_other hstore [not null]
 }
-// we save our payment requests here
-Table payment_requests {
-  id integer [primary key]
-  request JSON [not null]
-}
+
 
 // consumed by mailer worker
 Table email_queue {
   id integer [primary key]
-  status queue_status [not null, default: 'pending']
+  queue_status integer [not null, default: 'id of pending']
   sender_name varchar [null]
   sender_address email [not null]
   recipient_name varchar [null]
@@ -156,9 +171,9 @@ Table email_queue {
   attachments integer[] [null]
 }
 
-Ref: likes.client_id > users.id 
+Ref: likes.client_id > users.id
 Ref: likes.product_id > products.id
-Ref: users.id < products.created_by 
+Ref: users.id < products.created_by
 Ref: categories.id <> products.category_id
 Ref: cart.client_id - users.id
 Ref: cart.product_id > products.id
@@ -166,6 +181,19 @@ Ref: orders.order_details_id < order_details.order_id
 Ref: users.id < orders.id
 Ref: email_queue.attachments <> files.id
 Ref: products.images <> files.id
-Ref: orders.payment_id < payments_queue.id
+Ref: orders.payment_id < payments.id
 Ref: order_details.product_id > products.id
-Ref: orders.payment_request_id < payment_requests.id
+
+Ref: "permissions"."id" < "permits"."permit"
+
+Ref: "roles"."id" < "permits"."role_id"
+
+Ref: "roles"."id" < "users"."role_id"
+
+Ref: "orders"."payment_status" < "statuses"."id"
+
+Ref: "orders"."order_status" < "statuses"."id"
+
+Ref: "email_queue"."queue_status" < "statuses"."id"
+
+Ref: "payments"."payment_status" < "statuses"."id"
