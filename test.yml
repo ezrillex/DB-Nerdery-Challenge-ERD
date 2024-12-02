@@ -11,7 +11,6 @@ paths:
       description: >-
         Login or login attempt email is sent. Checks for login attempts and locks account if too many attempts were made.
       requestBody:
-        description: user email, password
         required: true
         content:
           application/json:
@@ -59,4 +58,28 @@ paths:
                         "code": 2,
                         "reason": "user attempted to log out after the session expired (last login was over 72 hours ago)"
                     }
+  /users:
+    post:
+      tags:
+        - Authentication
+      summary: Signs up a new user.
+      description: Creates a new user in db, with default role of client. A sys admin has to perform an account role update to upgrade the account to manager.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              first_name: Johns
+              last_name: Smiths
+              email: johns.smiths@email.com
+              password: password123$
+      responses:
+        '201':
+          description: sign up successful.  Sends Welcome email. Then performs login logic. Includes user object in response.
+        '409':
+          description: error code 5, reason is a user with the given email already exists.
+        '400':
+          description: error code 6, reason is the user email is invalid OR error code 7 reason is fields invalid aka too long or too short. i.e. password, user, other fields.
+
+
 
