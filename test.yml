@@ -103,7 +103,6 @@ paths:
             error reason is too many attempts in 24 hours, reset is blocked, try again later.
         '404':
           description: account does not exist
-
   /auth/reset:
     post:
       tags:
@@ -125,7 +124,87 @@ paths:
         '404':
           description: the reset token is not valid
         '400':
-          description: reset passwords do not match (validations error) / the token has expired! (latest timestamp is over 24hours)
+          description: >-
+            reset passwords do not match (validations error) / the token has expired! (latest timestamp is over 24hours)
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Lists products with pagination, doubles as the product search endpoint
+      description: >-
+        depending on permissions will return limited fields and will omit disabled/out of stock products. Further filtering should be done at client side, or notify devs in order to consider adding a dashboard endpoint with custom filtering for this table. i.e. filter by only disabled, only out of stock, only updated by, created at dates. more precise queries.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - in: query
+          name: category
+          schema:
+            type: array
+            items:
+              type: integer
+          description: A comma separated list of category ids
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: a text parameter to search for in name and description.
+        - in: query
+          name: likes
+          schema:
+            type: boolean
+            default: false
+          description: returns only products the user has liked, ignores if anonymous
+        - in: query
+          name: include_images
+          schema:
+            type: boolean
+            default: true
+          description: includes the URLs of the images, if false omits this. Useful for administrative dashboards which dont use an image or for other text only UIs.
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: accepts a field name to order the items by. ASC by default, if - on start of string is DESC.
+          examples:
+            by_price:
+              summary: High to Low price
+              value: '-price '
+            by_name:
+              summary: A to Z name
+              value: 'name'
 
+      responses:
+        '200':
+          description: an array of products filtered according to the specified parameters. also includes pagination details
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        "products":[{},{}],
+                        "count":2,
+                        "total_count": 982,
+                        "current_page":99,
+                        "total_pages":99,
+                        "next?": false,
+                        "previous?": true
+                    }
+        '404':
+          description: no items match query
+        '400':
+          description: error invalid query inputs (comma separated list or an array of strings with name of fields which failed validation)
+        '429':
+          description: error with rate limit, this endpoint is available to anonymous users so a rate limit is needed.
 
 
