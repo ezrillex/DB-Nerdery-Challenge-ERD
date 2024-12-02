@@ -1,0 +1,19 @@
+openapi: 3.0.3
+info:
+  title: My Api
+  version: '-1.seven.3'
+paths:
+  /about:
+    get:
+      tags:
+        - utils
+        # - other
+      summary: Fetches info about the server I guess...
+      responses:
+        '200':
+          description: successfully got info from the server, respondes with something.
+          content:
+            text/plain; charset=utf-8:
+              examples:
+                sample about res:
+                  value: "{\n\t'version': '123.123',\n\t'server_uptime': '1285418148',\n\t'webmaster': 'asdf@asdf.asdf',\n}"
