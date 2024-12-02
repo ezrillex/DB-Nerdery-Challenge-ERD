@@ -73,13 +73,15 @@ paths:
               last_name: Smiths
               email: johns.smiths@email.com
               password: password123$
+              repeat_password: password123$
       responses:
         '201':
           description: sign up successful.  Sends Welcome email. Then performs login logic. Includes user object in response.
         '409':
           description: error code 5, reason is a user with the given email already exists.
         '400':
-          description: error code 6, reason is the user email is invalid OR error code 7 reason is fields invalid aka too long or too short. i.e. password, user, other fields.
+          description: >-
+            VALIDATION ERROR, reason is the user email is invalid OR error code 7 reason is fields invalid aka too long or too short. i.e. password not match, user, other fields.
   /auth/forgot:
     post:
       tags:
@@ -102,7 +104,28 @@ paths:
         '404':
           description: account does not exist
 
-
+  /auth/reset:
+    post:
+      tags:
+        - Authentication
+      summary: Submits a new password for a user
+      description: >-
+        Checks if the reset password token provided is valid, checks if password fulfills parameters (length min/max). If all is good, hashes and updates password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              reset_token: TE3fEU8S80rg1EelA3jmEetVokFvLgTK
+              password: definitelywontforget!213
+              repeat_password: definitelywontforget!213
+      responses:
+        '200':
+          description: reset successfull. Goes to login screen, does not auto login.
+        '404':
+          description: the reset token is not valid
+        '400':
+          description: reset passwords do not match (validations error) / the token has expired! (latest timestamp is over 24hours)
 
 
 
