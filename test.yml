@@ -31,3 +31,32 @@ paths:
         '404':
           description: >-
             credentials are invalid, error code 4 reason account does not exists.
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logs the user out.
+      description: >-
+        This updates the last loged at timestamp. This is a post because we want
+        to fail on further calls with already loged out or other errors.
+      responses:
+        '200':
+          description: logged out succesfully!
+        '400':
+          description: user has already logged out / session has expired. these edge cases wont update last logout timestamp.
+          content:
+            application/json:
+              examples:
+                already logged out:
+                  value: |-
+                    {
+                        "code":1,
+                        "reason":"user has already logged out"
+                    }
+                user tried to logout but session was expired:
+                  value: |-
+                    {
+                        "code": 2,
+                        "reason": "user attempted to log out after the session expired (last login was over 72 hours ago)"
+                    }
+
