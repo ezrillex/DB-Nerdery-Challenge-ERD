@@ -206,5 +206,56 @@ paths:
           description: error invalid query inputs (comma separated list or an array of strings with name of fields which failed validation)
         '429':
           description: error with rate limit, this endpoint is available to anonymous users so a rate limit is needed.
-
+    post:
+      tags:
+        - Products
+      summary: creates a new product
+      description: Requires Write Permission (Manager Create Permit).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: Apple iPhone SE 2025
+              details: The all new BUDGET iphone SE with AI ......
+              price: 999.99
+              stock: 3000
+              images: [1,2,3,4,6]
+      responses:
+        '200':
+          description: ' product created sucesfuly, returns the product object, the api updates the timestamps and tracks the id of the user to the created by'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+    put:
+      tags:
+        - Products
+      summary: updates a product data
+      description: Requires Write Permission (Manager Update Permit). Only id and one field is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              id: 3
+              name: Apple iPhone SE 2025
+              details: The all new BUDGET iphone SE with AI ......
+              price: 999.99
+              stock: 3000
+              images: [1,2,3,4,6]
+              disabled: false
+      responses:
+        '200':
+          description: ' product created sucesfuly updated, returns the updated object, the api updates the timestamps and tracks the id of the user to the updated by, any omitted field is not updated.'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+        '404':
+          description: product with id X not found
 
