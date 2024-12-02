@@ -1,19 +1,33 @@
 openapi: 3.0.3
 info:
-  title: My Api
+  title: Ezra e-commerce
   version: '-1.seven.3'
 paths:
-  /about:
-    get:
+  /auth/login:
+    post:
       tags:
-        - utils
-        # - other
-      summary: Fetches info about the server I guess...
+        - Authentication
+      summary: Validates credentials with server and returns the user object.
+      description: >-
+        Login or login attempt email is sent. Checks for login attempts and locks account if too many attempts were made.
+      requestBody:
+        description: user email, password
+        required: true
+        content:
+          application/json:
+            example:
+              email: me@email.com
+              password: supersafe123!
       responses:
         '200':
-          description: successfully got info from the server, respondes with something.
-          content:
-            text/plain; charset=utf-8:
-              examples:
-                sample about res:
-                  value: "{\n\t'version': '123.123',\n\t'server_uptime': '1285418148',\n\t'webmaster': 'asdf@asdf.asdf',\n}"
+          description: >-
+            credentials are valid, responds with user object. resets failed login attempts. Updates last login at. and clears the password reset timestamps.
+        '400':
+          description: >-
+            error reason is too many failed attempts, the account is locked, please reach out to support. (this is ridiculous but banks do this kind of stuff)
+        '401':
+          description: >-
+            credentials are invalid, error code 3 reason wrong password. Increases the attempts count and adds a timestamp to the attempts timestamp log.
+        '404':
+          description: >-
+            credentials are invalid, error code 4 reason account does not exists.
