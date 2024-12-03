@@ -69,8 +69,10 @@ Table users {
   last_login_at timestamp [null, note: 'lets assume the user has a session token and that is handled by the app.']
   last_signout_at timestamp [null]
   password_hash char(32) [not null, note: 'md5 + salt']
+  password_last_updated timestamp [not null]
   failed_login_attempts integer [default: 0]
-  password_reset_token varchar [null]
+  failed_login_attempts_timestamps timestamp[] [null]
+  password_reset_token char(32) [null, note: 'https://it-tools.tech/token-generator?length=32']
   password_reset_requests integer [default: 0]
   password_reset_requests_tiemstamps timestamp[]
 }
@@ -88,11 +90,15 @@ Table products {
   last_updated_by integer [null]
   last_updated_at timestamp [null]
   images integer[] [null]
+  deleted boolean [default: false, not null]
 }
 
 Table files {
   id integer [primary key]
+  name varchar [not null]
+  size integer [not null, note: 'in bytes']
   url varchar [note: 'URL TO THE CDN HOSTED FILE']
+  created_at timestamp [default: 'now()', not null]
 }
 
 // the existence of a product here means there is a like.
@@ -131,6 +137,7 @@ Table orders {
   order_details_id integer[] [not null]
   payment_status integer [not null, default: 'id of pending']
   order_status integer [not null, default: 'pending_fulfillment']
+  created_at timestamp [default: 'now()']
 }
 
 Table order_details {
@@ -138,7 +145,6 @@ Table order_details {
   order_id integer [not null]
   product_id integer [not null]
   product_qty integer [not null]
-  created_at timestamp [default: 'now()']
 }
 // webhook calls go here
 Table payments {

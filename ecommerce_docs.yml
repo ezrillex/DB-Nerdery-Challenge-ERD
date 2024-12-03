@@ -290,7 +290,7 @@ paths:
   /orders:
     get:
       tags:
-        - Products
+        - Orders
       summary: Lists orders with pagination, doubles as the order search endpoint (search mostly for managers)
       description: >-
         depending on permissions will return limited fields and will omit disabled/out of stock products. Further filtering should be done at client side, or notify devs in order to consider adding a dashboard endpoint with custom filtering for this table. i.e. filter by only disabled, only out of stock, only updated by, created at dates. more precise queries.
@@ -356,6 +356,28 @@ paths:
         '400':
           description: error invalid query inputs (comma separated list or an array of strings with name of fields which failed validation)
 
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+  /files:
+    post:
+      tags:
+        - Others
+      summary: creates a new file
+      description: Requires Write Permission (Manager Upload Permit). This endpoint receives a base64 encoded file, then it uploads it to a CDN, when it gets a response with a url it then creates a file entry with the file metadata like the size and a timestamp.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: photo.png
+              base64: 'aaaaaaaaaaaaadddddddddddddddddd3333333333344444'
+      responses:
+        '200':
+          description: 'file upload in progess'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
         '401':
           description: 'user not logged in'
         '403':
