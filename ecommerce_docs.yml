@@ -393,7 +393,7 @@ paths:
   /files:
     post:
       tags:
-        - Others
+        - System
       summary: creates a new file
       description: Requires Write Permission (Manager Upload Permit). This endpoint receives a base64 encoded file, then it uploads it to a CDN, when it gets a response with a url it then creates a file entry with the file metadata like the size and a timestamp.
       requestBody:
@@ -434,4 +434,24 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'user role doenst have the necessary permit'
-#  /carts/{user_id}:
+  /likes:
+    post:
+      tags:
+        - Likes
+      summary: a user submits a product to like.
+      description: This wont fail if the user tries to send a like for an already liked product. The api automatically adds the user id as the one sending the request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              product_id: 5
+      responses:
+        '200':
+          description: 'successfully added to likes/already in likes'
+        '400':
+          description: the id is not valid.
+        '401':
+          description: 'user not logged in'
+        '429':
+          description: error with rate limit, since we dont fail in case the api is hit many times just rate limit it.
