@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Ezra e-commerce
-  version: '-1.seven.3'
+  version: '1.0.0'
 paths:
   /auth/login:
     post:
@@ -283,6 +283,79 @@ paths:
           description: product id not found
         '400':
           description: invalid id value
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+  /orders:
+    get:
+      tags:
+        - Products
+      summary: Lists orders with pagination, doubles as the order search endpoint (search mostly for managers)
+      description: >-
+        depending on permissions will return limited fields and will omit disabled/out of stock products. Further filtering should be done at client side, or notify devs in order to consider adding a dashboard endpoint with custom filtering for this table. i.e. filter by only disabled, only out of stock, only updated by, created at dates. more precise queries.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - in: query
+          name: order_status
+          schema:
+            type: integer
+          description: A status id to filter the results by
+        - in: query
+          name: payment_status
+          schema:
+            type: integer
+          description: A status id to filter the results by
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: a text parameter to search for in client names and email or order number
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: accepts a field name to order the orders by. ASC by default, if - on start of string is DESC.
+          examples:
+            by_price:
+              summary: Oldest to Recent
+              value: '-created_at '
+            by_name:
+              summary: Delivery Status
+              value: 'order_status'
+      responses:
+        '200':
+          description: an array of orders filtered according to the specified parameters. also includes pagination details
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        "orders":[{},{}],
+                        "count":2,
+                        "total_count": 982,
+                        "current_page":99,
+                        "total_pages":99,
+                        "next?": false,
+                        "previous?": true
+                    }
+        '404':
+          description: no items match query OR user doesnt have orders (when role is client and this wants to return only his orders. or should it return empty array?)
+        '400':
+          description: error invalid query inputs (comma separated list or an array of strings with name of fields which failed validation)
+
         '401':
           description: 'user not logged in'
         '403':
