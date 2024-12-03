@@ -319,7 +319,6 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'user role doenst have the necessary permit'
-
   /orders:
     get:
       tags:
@@ -449,8 +448,104 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'order queried is not from the user. blocked'
-
-
+  /payments:
+    post:
+      tags:
+        - Payments
+      summary: 'Step 1 of a Payment'
+      description: This endpoint needs the order to which the payment is being attempted. This creates the Payment intent object and logs it to stripe_event_request. The payment_intent_details is combined with server configured parameters to produce a payment object. FYI our order id is also sent in the metadata. Status = started
+      requestBody:
+        content:
+          application/json:
+            example:
+              order_id: 456
+              stripe_api_version: 4.3
+              payment_intent_details:
+                amount: 123
+                currency: USD
+      responses:
+        '200':
+          description: payment intent created succesfully
+        '400':
+          description: an open payment intent already exists
+        '404':
+          description: specified order id does not exist
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'payment is not from order of user'
+        '500':
+          description: unable to create payment intent with stripe. Error details.
+  /payments/{id}:
+    post:
+      summary: Step 4 worker processed the webhook event and wants to push updates.
+      description: This api updates the order payment status accordingly. Sets the payment to success, fail, cancelled. The api if it determines no further actions should be performed to the payment it sets closed to true. This is for example if the payment failed we prefer for a new payment cycle to be opened. This closed is not final for all transactions as we might want to refund an intent thus further actions can still be acted upon. only these fields are expected to be changed as this is an endpoint that only the worker should use. Other changes should use put method.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            example:
+              closed: true
+              payment_status: 3
+      responses:
+        '200':
+          description: changes made ok
+    put:
+      tags:
+        - Payments
+      summary: Step 2 of a Payment - adds the payment card details to our intent
+      description: combines the card details with our payment intent. This overrides the stripe_event_request which is in sync with stripe as this updates are being sent to stripe as we modify them. This has to handle any other field we need to update. Status = Awaiting Payment OR Status = Processing Payment.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            examples:
+              updating with card info:
+                value:
+                  payment_details:
+                    card_number: 123123123
+                    cvc: 123123
+                  other_fields_to_update:
+                    - field1: value
+                    - field2: value
+                    - field3: value
+              customer clicked pay as a final step, we want to charge card now:
+                value:
+                  confirm_payment: true
+      responses:
+        '200':
+          description: payment intent updated succesfully AND/OR payment confirmation started succesfully
+        '400':
+          description: FIELDS in the request are invalid OR payment is already confirmed, changes are disallowed as per stripe docs "During that time, you should disable your form from being resubmitted and show a waiting indicator like a spinner."
+        '404':
+          description: specified order id does not exist
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'payment is not from order of user'
+        '500':
+          description: unable to push payment intent to stripe. Error details.
+  /webhook:
+    post:
+      summary: Step 3 we consume updates regarding our payment intent from stripe
+      description: as per the stripe docs we need to not run business logic now, just record what we get. A worker will be triggered to further process the response, for now this hook only verifies the correct transmission of the data. i.e. the JSON is valid for example. Status = Processing Payment. The request expected is as detailed in https://docs.stripe.com/api/events/object and filtered by the type of event we setup to send to webhook on stripe configurations. recorded on stripe_webhook field.
+      responses:
+        '200':
+          description: the event was recieved correctly.
+        '400':
+          description: the event JSON is invalid / malformed
+        '404':
+          description: the order id metadata does not exist/is missing, there is no associated order on our systems to assign this webhook call to.
   /files:
     post:
       tags:
