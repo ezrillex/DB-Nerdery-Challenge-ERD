@@ -58,30 +58,6 @@ paths:
                         "code": 2,
                         "reason": "user attempted to log out after the session expired (last login was over 72 hours ago)"
                     }
-  /users:
-    post:
-      tags:
-        - Authentication
-      summary: Signs up a new user.
-      description: Creates a new user in db, with default role of client. A sys admin has to perform an account role update to upgrade the account to manager.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            example:
-              first_name: Johns
-              last_name: Smiths
-              email: johns.smiths@email.com
-              password: password123$
-              repeat_password: password123$
-      responses:
-        '201':
-          description: sign up successful.  Sends Welcome email. Then performs login logic. Includes user object in response.
-        '409':
-          description: error code 5, reason is a user with the given email already exists.
-        '400':
-          description: >-
-            VALIDATION ERROR, reason is the user email is invalid OR error code 7 reason is fields invalid aka too long or too short. i.e. password not match, user, other fields.
   /auth/forgot:
     post:
       tags:
@@ -126,6 +102,32 @@ paths:
         '400':
           description: >-
             reset passwords do not match (validations error) / the token has expired! (latest timestamp is over 24hours)
+
+  /users:
+    post:
+      tags:
+        - Authentication
+      summary: Signs up a new user.
+      description: Creates a new user in db, with default role of client. A sys admin has to perform an account role update to upgrade the account to manager.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              first_name: Johns
+              last_name: Smiths
+              email: johns.smiths@email.com
+              password: password123$
+              repeat_password: password123$
+      responses:
+        '201':
+          description: sign up successful.  Sends Welcome email. Then performs login logic. Includes user object in response.
+        '409':
+          description: error code 5, reason is a user with the given email already exists.
+        '400':
+          description: >-
+            VALIDATION ERROR, reason is the user email is invalid OR error code 7 reason is fields invalid aka too long or too short. i.e. password not match, user, other fields.
+
   /products:
     get:
       tags:
@@ -317,6 +319,7 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'user role doenst have the necessary permit'
+
   /orders:
     get:
       tags:
@@ -390,6 +393,32 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'user role doenst have the necessary permit'
+    post:
+        tags:
+          - Orders
+        summary: creates a new order
+        description: Requires an account, an array of items in cart that are to be purchased.
+        requestBody:
+          required: true
+          content:
+            application/json:
+              example:
+                cart_item_ids: [1,2,3,4,56]
+                other_info: like_address
+        responses:
+          '200':
+            description: >-
+                order placed, the api will automatically assign the client id to the user id of the submitting user. this call will also copy the items from the cart into the order details and remove them from cart. The timestamp, and statuses will be set by default. An order is created before the first payment attempt is made. Thus the app has to hit the payments endpiont once there is an intent.
+            content:
+              application/json:
+                example:
+                  order_id: 1234
+          '400':
+            description: 'invalid data. The list is in a wrong format or has items which are not in the customer cart.'
+          '401':
+            description: 'user not logged in'
+          '403':
+            description: 'user role doenst have the necessary permit'
   /orders/{id}:
     get:
       parameters:
@@ -420,6 +449,8 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'order queried is not from the user. blocked'
+
+
   /files:
     post:
       tags:
