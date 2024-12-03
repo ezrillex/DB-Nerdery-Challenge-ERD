@@ -132,7 +132,7 @@ paths:
         - Products
       summary: Lists products with pagination, doubles as the product search endpoint
       description: >-
-        depending on permissions will return limited fields and will omit disabled/out of stock products. Further filtering should be done at client side, or notify devs in order to consider adding a dashboard endpoint with custom filtering for this table. i.e. filter by only disabled, only out of stock, only updated by, created at dates. more precise queries.
+        permission manager returns all orders by default, permission client returns only orders from the client itself. Clients will omit disabled/out of stock products by default. Further filtering should be done at client side, or notify devs in order to consider adding a dashboard endpoint with custom filtering for this table. i.e. filter by only disabled, only out of stock, only updated by, created at dates. more precise queries.
       parameters:
         - in: query
           name: page
@@ -231,6 +231,36 @@ paths:
         '403':
           description: 'user role doenst have the necessary permit'
   /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: gets a specific product by id
+      description: >-
+        some of the details like if the product has been like are included in the case of a client.
+      parameters:
+        - in: query
+          name: product_id
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: a product object with the extra field of liked if user is logged in and of type client.
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        ...data,
+                        liked: boolean
+                    }
+        '404':
+          description: no items with that id
+        '400':
+          description: error invalid input (sent a string for example)
+        '429':
+          description: error with rate limit, this endpoint is available to anonymous users so a rate limit is needed.
     put:
       tags:
         - Products
