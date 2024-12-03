@@ -390,6 +390,36 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'user role doenst have the necessary permit'
+  /orders/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      tags:
+        - Orders
+      responses:
+        '200':
+          description: ok, returns order object and the list of the object details.
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        "order": {},
+                        "items": [{},{}]
+                    }
+        '400':
+          description: id is invalid format
+        '404':
+          description: order with that id not found
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'order queried is not from the user. blocked'
   /files:
     post:
       tags:
