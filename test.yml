@@ -230,17 +230,23 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'user role doenst have the necessary permit'
+  /products/{id}:
     put:
       tags:
         - Products
       summary: updates a product data
-      description: Requires Write Permission (Manager Update Permit). Only id and one field is required.
+      description: Requires Write Permission (Manager Update Permit). Only id and one field is required. This endpoint is for requirements of updating a product and disable toggle.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
       requestBody:
         required: true
         content:
           application/json:
             example:
-              id: 3
               name: Apple iPhone SE 2025
               details: The all new BUDGET iphone SE with AI ......
               price: 999.99
@@ -258,7 +264,6 @@ paths:
           description: 'user role doenst have the necessary permit'
         '404':
           description: product with id X not found
-  /products/{id}:
     delete:
       tags:
         - Products
