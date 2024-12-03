@@ -1,4 +1,6 @@
 openapi: 3.0.3
+# TODO check all endpoints have errors for user control/permits
+# TODO check all tags make sense
 info:
   title: Ezra e-commerce
   version: '1.0.0'
@@ -611,3 +613,57 @@ paths:
           description: 'user not logged in'
         '429':
           description: error with rate limit, since we dont fail in case the api is hit many times just rate limit it.
+  /promotions:
+    post:
+      summary: A cronjob calls on this endpoint to perform marketing logic.
+      description: Periodically this endpoint is run and checks for marketing conditions. In this case one of them is "When the stock of a product reaches 3, notify the last user that liked it and not purchased the product yet with an email. Tracks failed runs to not do anything if over a parameter and notify sys admin if possible.
+      responses:
+        '200':
+          description: successfully ran the cron job
+        '500':
+          description: something went wrong when executing the cronjob. Fail count is 2
+  /emails:
+    post:
+      summary: adds an email to the queue to be sent by worker
+      requestBody:
+        content:
+          application/json:
+            example:
+              sender_name: Marketing Team
+              sender_address: marketing@email.com
+              recipient_name: Dear XXXXXX XXXXXX Customer
+              recipient_address: XXXX@legit_email.com
+              reply_to email: sales_department@email.com
+              subject: Stock for XXXX is low! Dont miss out!!
+              text_content: the product you liked has only 3 units left!!!!
+              html_content: <h1>the product you liked has only 3 units left!!!!</h1>
+              attachments: [ 1, 3 ,4 ]
+      responses:
+        '202':
+          description: email succesfully added to queue
+        '400':
+          description: values provided for email are invalid. retunrs a list of invalid fields and reason.
+        '404':
+          description: attachments provided have ids that do not exist
+  /emails/{id}:
+    put:
+      summary: updates the status of an email job
+      description: if specified in request it returns the email object as to lock and retrieve the data in one go.
+      parameters:
+        - in: query
+          name: include_job
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: new_status
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: status updated, includes email object if requested
+        '404':
+          description: job id not found, or status id
+        '400':
+          description: some value was not in the right format or missing
