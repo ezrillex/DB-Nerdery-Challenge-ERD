@@ -133,7 +133,6 @@ Table orders {
   id integer [primary key]
   client_id integer [not null]
   payment_id integer[] [null]
-  payment_request_id integer[] [not null]
   order_details_id integer[] [not null]
   payment_status integer [not null, default: 'id of pending']
   order_status integer [not null, default: 'pending_fulfillment']
@@ -145,20 +144,18 @@ Table order_details {
   order_id integer [not null]
   product_id integer [not null]
   product_qty integer [not null]
+  price_purchased_at numeric [not null]
 }
-// webhook calls go here
+
 Table payments {
   id integer [primary key]
+  closed boolean [not null, default: false]
   payment_status integer [not null, default: 'pending id']
   created_at timestamp [not null, default: 'now()']
-  stripe_event_id varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_api_version varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_event_response JSON [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_event_request JSON [not null, note: 'the request that is sent']
-  stripe_event_type varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_object varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_created integer [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_other hstore [not null]
+  stripe_event_id varchar [null]
+  stripe_api_version varchar [null]
+  stripe_webhook JSON [null]
+  stripe_payment_intent JSON [not null, note: 'the request that is sent']
 }
 
 
