@@ -258,4 +258,27 @@ paths:
           description: 'user role doenst have the necessary permit'
         '404':
           description: product with id X not found
-
+  /products/{id}:
+    delete:
+      tags:
+        - Products
+      summary: deletes a specified product
+      description: >-
+        because cascading to delete a product will probably also delete it from orders, this only updates field deleted to true, this will make sure it is omitted from queries except such as old orders. This also serves as an identifier so that once orders are closed a cleanup task can be performed.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'delete successful OR product already deleted'
+        '404':
+          description: product id not found
+        '400':
+          description: invalid id value
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
