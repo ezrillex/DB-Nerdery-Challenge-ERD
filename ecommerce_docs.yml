@@ -238,11 +238,11 @@ paths:
       description: >-
         some of the details like if the product has been like are included in the case of a client.
       parameters:
-        - in: query
-          name: product_id
+        - in: path
+          required: true
+          name: id
           schema:
             type: integer
-            minimum: 1
       responses:
         '200':
           description: a product object with the extra field of liked if user is logged in and of type client.
@@ -412,3 +412,26 @@ paths:
           description: 'user not logged in'
         '403':
           description: 'user role doenst have the necessary permit'
+  /carts:
+    post:
+      tags:
+        - Carts
+      summary: creates a new entry of an item in the cart
+      description: adds a product id + user id entry row to the cart table. Specifies the quantity in the cart.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              product_id: 3
+              quantity: 1
+      responses:
+        '200':
+          description: ' product created sucesfuly, returns the cart object, the api adds the timestamps and the user that submitted the request'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+#  /carts/{user_id}:
