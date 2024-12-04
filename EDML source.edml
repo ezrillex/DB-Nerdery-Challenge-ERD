@@ -64,13 +64,16 @@ Table users {
   first_name varchar [not null]
   last_name varchar [not null]
   email email [not null]
+  session_token char(32) [null, note: 'generated same as reset token']
   role_id integer [not null, default: 1]
   created_at timestamp [default: 'now()']
-  last_login_at timestamp [null, note: 'lets assume the user has a session token and that is handled by the app.']
+  last_login_at timestamp [null]
   last_signout_at timestamp [null]
   password_hash char(32) [not null, note: 'md5 + salt']
+  password_last_updated timestamp [not null]
   failed_login_attempts integer [default: 0]
-  password_reset_token varchar [null]
+  failed_login_attempts_timestamps timestamp[] [null]
+  password_reset_token char(32) [null, note: 'https://it-tools.tech/token-generator?length=32']
   password_reset_requests integer [default: 0]
   password_reset_requests_tiemstamps timestamp[]
 }
@@ -88,11 +91,15 @@ Table products {
   last_updated_by integer [null]
   last_updated_at timestamp [null]
   images integer[] [null]
+  deleted boolean [default: false, not null]
 }
 
 Table files {
   id integer [primary key]
+  name varchar [not null]
+  size integer [not null, note: 'in bytes']
   url varchar [note: 'URL TO THE CDN HOSTED FILE']
+  created_at timestamp [default: 'now()', not null]
 }
 
 // the existence of a product here means there is a like.
@@ -100,6 +107,7 @@ Table likes {
   id integer [primary key]
   client_id integer [not null]
   product_id integer [not null]
+  created_at timestamp [not null, default: 'now()', note: 'for marketing logic']
 }
 
 Table categories {
@@ -127,10 +135,10 @@ Table orders {
   id integer [primary key]
   client_id integer [not null]
   payment_id integer[] [null]
-  payment_request_id integer[] [not null]
   order_details_id integer[] [not null]
   payment_status integer [not null, default: 'id of pending']
   order_status integer [not null, default: 'pending_fulfillment']
+  created_at timestamp [default: 'now()']
 }
 
 Table order_details {
@@ -138,21 +146,18 @@ Table order_details {
   order_id integer [not null]
   product_id integer [not null]
   product_qty integer [not null]
-  created_at timestamp [default: 'now()']
+  price_purchased_at numeric [not null]
 }
-// webhook calls go here
+
 Table payments {
   id integer [primary key]
+  closed boolean [not null, default: false]
   payment_status integer [not null, default: 'pending id']
   created_at timestamp [not null, default: 'now()']
-  stripe_event_id varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_api_version varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_event_response JSON [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_event_request JSON [not null, note: 'the request that is sent']
-  stripe_event_type varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_object varchar [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_created integer [null, note: 'relaxed as nullable because worker will do the real processing, worst case all goes to hstore']
-  stripe_other hstore [not null]
+  stripe_event_id varchar [null]
+  stripe_api_version varchar [null]
+  stripe_webhook JSON [null]
+  stripe_payment_intent JSON [not null, note: 'the request that is sent']
 }
 
 

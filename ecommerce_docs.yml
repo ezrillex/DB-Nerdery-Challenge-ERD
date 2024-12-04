@@ -1,0 +1,827 @@
+openapi: 3.0.3
+info:
+  title: Ezra e-commerce
+  version: '1.0.0'
+components:
+  securitySchemes:
+    bearer_user_auth:
+      type: http
+      scheme: bearer
+    bearer_system_tokens:
+      type: http
+      scheme: bearer
+    public_no_auth:
+      type: http
+      scheme: basic
+paths:
+  /auth/login:
+    post:
+      security:
+        - public_no_auth: []
+      tags:
+        - Authentication
+      summary: Validates credentials with server and returns the user object.
+      description: >-
+        Login or login attempt email is sent. Checks for login attempts in the past 24 hours and locks account if too many attempts were made. User is allowed to login again, however the emails of login will be sent for each request again and any other sessions will be logged out/ their token will become invalid. Returns bearer token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              email: me@email.com
+              password: supersafe123!
+      responses:
+        '200':
+          description: >-
+            credentials are valid, responds with user object. resets failed login attempts. Updates last login at. and clears the password reset timestamps and returns the session token for the user to authenticate to server in further requests.
+        '400':
+          description: >-
+            error reason is too many failed attempts in 24 hrs, the account is locked try again later.
+        '401':
+          description: >-
+            credentials are invalid, error code 3 reason wrong password. Increases the attempts count and adds a timestamp to the attempts timestamp log.
+        '404':
+          description: >-
+            credentials are invalid, error code 4 reason account does not exists.
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      security:
+        - bearer_user_auth: []
+      summary: Logs the user out.
+      description: >-
+        This updates the last loged at timestamp. This is a post because we want
+        to fail on further calls with already loged out or other errors.
+      responses:
+        '200':
+          description: logged out succesfully!
+        '400':
+          description: user has already logged out / session has expired. these edge cases wont update last logout timestamp.
+          content:
+            application/json:
+              examples:
+                already logged out:
+                  value: |-
+                    {
+                        "code":1,
+                        "reason":"user has already logged out"
+                    }
+                user tried to logout but session was expired:
+                  value: |-
+                    {
+                        "code": 2,
+                        "reason": "user attempted to log out after the session expired (last login was over 72 hours ago)"
+                    }
+        '401':
+          description: 'forbidden, user is trying to logout without the auth token'
+  /auth/forgot:
+    post:
+      tags:
+        - Authentication
+      summary: Starts the password recovery flow.
+      description: Checks for limit of recovery attempts then continues with flow accordingly .
+      security:
+        - public_no_auth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              email: my_email_from_2nd_grade@mail.com
+      responses:
+        '200':
+          description: >-
+            Increases the count of attempts, adds a timestamp. Sets the reset token. Adds an email to the email queue with a link with the attempt token.
+        '400':
+          description: >-
+            error reason is too many attempts in 24 hours, reset is blocked, try again later.
+        '404':
+          description: account does not exist
+        '429':
+          description: api is being spammed, different than too many attempts as this is exceeds a resonable rate limit.
+  /auth/reset:
+    post:
+      tags:
+        - Authentication
+      security:
+        - public_no_auth: []
+      summary: Submits a new password for a user
+      description: >-
+        Checks if the reset password token provided is valid, checks if password fulfills parameters (length min/max). If all is good, hashes and updates password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              reset_token: TE3fEU8S80rg1EelA3jmEetVokFvLgTK
+              password: definitelywontforget!213
+              repeat_password: definitelywontforget!213
+      responses:
+        '200':
+          description: reset successfull. Goes to login screen, does not auto login.
+        '404':
+          description: the reset token is not valid / reset token was already used.
+        '400':
+          description: >-
+            reset passwords do not match (validations error) / the token has expired! (latest timestamp is over 24hours) 
+
+  /users:
+    post:
+      tags:
+        - Authentication
+      security:
+        - public_no_auth: []
+      summary: Signs up a new user.
+      description: Creates a new user in db, with default role of client. A sys admin has to perform an account role update to upgrade the account to manager.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              first_name: Johns
+              last_name: Smiths
+              email: johns.smiths@email.com
+              password: password123$
+              repeat_password: password123$
+      responses:
+        '201':
+          description: sign up successful.  Sends Welcome email. Then redirects user to login screen.
+        '409':
+          description: error code 5, reason is a user with the given email already exists.
+        '400':
+          description: >-
+            VALIDATION ERROR, reason is the user email is invalid OR error code 7 reason is fields invalid aka too long or too short. i.e. password not match, user, other fields.
+        '429':
+          description: rate limited, api is being spammed. maybe UI can show captcha in this scenario?
+  /products:
+    get:
+      security:
+        - public_no_auth: []
+        - bearer_user_auth: []
+      tags:
+        - Products
+      summary: Lists products with pagination, doubles as the product search endpoint
+      description: >-
+        permission manager allows to return all orders, permission client returns only orders from the client itself. Clients will omit disabled/out of stock products by default. Further filtering should be done at client side, or notify devs in order to consider adding a dashboard endpoint with custom filtering for this table. i.e. filter by only disabled, only out of stock, only updated by, created at dates. more precise queries.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - in: query
+          name: category
+          schema:
+            type: array
+            items:
+              type: integer
+          description: A comma separated list of category ids
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: a text parameter to search for in name and description.
+        - in: query
+          name: likes
+          schema:
+            type: boolean
+            default: false
+          description: returns only products the user has liked, ignores if anonymous
+        - in: query
+          name: include_images
+          schema:
+            type: boolean
+            default: true
+          description: includes the URLs of the images, if false omits this. Useful for administrative dashboards which dont use an image or for other text only UIs.
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: accepts a field name to order the items by. ASC by default, if - on start of string is DESC.
+          examples:
+            by_price:
+              summary: High to Low price
+              value: '-price '
+            by_name:
+              summary: A to Z name
+              value: 'name'
+
+      responses:
+        '200':
+          description: an array of products filtered according to the specified parameters. also includes pagination details
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        "products":[{},{}],
+                        "count":2,
+                        "total_count": 982,
+                        "current_page":99,
+                        "total_pages":99,
+                        "next?": false,
+                        "previous?": true
+                    }
+        '404':
+          description: no items match query
+        '400':
+          description: error invalid query inputs (comma separated list or an array of strings with name of fields which failed validation)
+        '401':
+          description: requested to filter by likes but user is public
+        '429':
+          description: error with rate limit, this endpoint is available to anonymous users so a rate limit is needed.
+    post:
+      security:
+        - bearer_user_authentication: []
+      tags:
+        - Products
+      summary: creates a new product
+      description: Requires Write Permission (Manager Create Permit).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: Apple iPhone SE 2025
+              details: The all new BUDGET iphone SE with AI ......
+              price: 999.99
+              stock: 3000
+              images: [1,2,3,4,6]
+      responses:
+        '200':
+          description: ' product created sucesfuly, returns the product object, the api updates the timestamps and tracks the id of the user to the created by'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      security:
+        - public_no_auth: []
+        - bearer_user_auth: []
+      summary: gets a specific product by id
+      description: >-
+        some of the details like if the product has been like are included in the case of a client.
+      parameters:
+        - in: path
+          required: true
+          name: id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: a product object with the extra field of liked if user is logged in and of type client.
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        ...data,
+                        liked: boolean
+                    }
+        '404':
+          description: no items with that id
+        '400':
+          description: error invalid input (sent a string for example)
+        '401':
+          description: requested to see a disabled or deleted product (error to public)
+        '403':
+          description: requested to see a deleted or disabled product (allowed only if one of the disabled is in any past orders)
+        '429':
+          description: error with rate limit, this endpoint is available to anonymous users so a rate limit is needed.
+    put:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+      summary: updates a product data
+      description: Requires Write Permission (Manager Update Permit). Only id and one field is required. This endpoint is for requirements of updating a product and disable toggle.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: Apple iPhone SE 2025
+              details: The all new BUDGET iphone SE with AI ......
+              price: 999.99
+              stock: 3000
+              images: [1,2,3,4,6]
+              disabled: false
+      responses:
+        '200':
+          description: ' product created sucesfuly updated, returns the updated object, the api updates the timestamps and tracks the id of the user to the updated by, any omitted field is not updated.'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+        '404':
+          description: product with id X not found
+    delete:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+      summary: deletes a specified product
+      description: >-
+        because cascading to delete a product will probably also delete it from orders, this only updates field deleted to true, this will make sure it is omitted from queries except such as old orders. This also serves as an identifier so that once orders are closed a cleanup task can be performed.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'delete successful OR product already deleted'
+        '404':
+          description: product id not found
+        '400':
+          description: invalid id value
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+  /orders:
+    get:
+      tags:
+        - Orders
+      security:
+        - bearer_user_auth: []
+      summary: Lists orders with pagination, doubles as the order search endpoint (search mostly for managers)
+      description: >-
+        depending on permissions will return limited fields and will omit disabled/out of stock products. Further filtering should be done at client side, or notify devs in order to consider adding a dashboard endpoint with custom filtering for this table. i.e. filter by only disabled, only out of stock, only updated by, created at dates. more precise queries.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - in: query
+          name: order_status
+          schema:
+            type: integer
+          description: A status id to filter the results by
+        - in: query
+          name: payment_status
+          schema:
+            type: integer
+          description: A status id to filter the results by
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: a text parameter to search for in client names and email or order number
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+          description: accepts a field name to order the orders by. ASC by default, if - on start of string is DESC.
+          examples:
+            by_price:
+              summary: Oldest to Recent
+              value: '-created_at '
+            by_name:
+              summary: Delivery Status
+              value: 'order_status'
+      responses:
+        '200':
+          description: an array of orders filtered according to the specified parameters. also includes pagination details
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        "orders":[{},{}],
+                        "count":2,
+                        "total_count": 982,
+                        "current_page":99,
+                        "total_pages":99,
+                        "next?": false,
+                        "previous?": true
+                    }
+        '404':
+          description: no items match query OR user doesnt have orders (when role is client and this wants to return only his orders. or should it return empty array?)
+        '400':
+          description: error invalid query inputs (comma separated list or an array of strings with name of fields which failed validation)
+
+        '401':
+          description: 'user not logged in'
+    post:
+        tags:
+          - Orders
+        security:
+          - bearer_user_auth: []
+        summary: creates a new order
+        description: Requires an account, an array of items in cart that are to be purchased.
+        requestBody:
+          required: true
+          content:
+            application/json:
+              example:
+                cart_item_ids: [1,2,3,4,56]
+                other_info: like_address
+        responses:
+          '200':
+            description: >-
+                order placed, the api will automatically assign the client id to the user id of the submitting user. this call will also copy the items from the cart into the order details and remove them from cart. The timestamp, and statuses will be set by default. An order is created before the first payment attempt is made. Thus the app has to hit the payments endpiont once there is an intent.
+            content:
+              application/json:
+                example:
+                  order_id: 1234
+          '400':
+            description: 'invalid data. The list is in a wrong format or has items which are not in the customer cart.'
+          '401':
+            description: 'user not logged in'
+          '403':
+            description: 'user role doenst have the necessary permit'
+  /orders/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      security:
+        - bearer_user_auth: []
+      tags:
+        - Orders
+      responses:
+        '200':
+          description: ok, returns order object and the list of the object details.
+          content:
+            application/json:
+              examples:
+                search result:
+                  value: |-
+                    {
+                        "order": {},
+                        "items": [{},{}]
+                    }
+        '400':
+          description: id is invalid format
+        '404':
+          description: order with that id not found
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'order queried is not from the user. blocked'
+  /payments:
+    post:
+      tags:
+        - Payments
+      security:
+        - bearer_user_auth: []
+      summary: 'Step 1 of a Payment'
+      description: This endpoint needs the order to which the payment is being attempted. This creates the Payment intent object and logs it to stripe_event_request. The payment_intent_details is combined with server configured parameters to produce a payment object. FYI our order id is also sent in the metadata. Status = started
+      requestBody:
+        content:
+          application/json:
+            example:
+              order_id: 456
+              stripe_api_version: 4.3
+              payment_intent_details:
+                amount: 123
+                currency: USD
+      responses:
+        '200':
+          description: payment intent created succesfully
+        '400':
+          description: an open payment intent already exists
+        '404':
+          description: specified order id does not exist
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'payment specifies an order number that is not from the user'
+        '500':
+          description: unable to create payment intent with stripe. Error details.
+  /payments/{id}:
+    post:
+      tags:
+        - Payments
+      security:
+        - bearer_system_tokens: []
+      summary: Step 4 worker processed the webhook event and wants to push updates.
+      description: This api updates the order payment status accordingly. Sets the payment to success, fail, cancelled. The api if it determines no further actions should be performed to the payment it sets closed to true. This is for example if the payment failed we prefer for a new payment cycle to be opened. This closed is not final for all transactions as we might want to refund an intent thus further actions can still be acted upon. only these fields are expected to be changed as this is an endpoint that only the worker should use. Other changes should use put method.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            example:
+              closed: true
+              payment_status: 3
+      responses:
+        '200':
+          description: changes to payment made succesfully
+    put:
+      tags:
+        - Payments
+      security:
+        - bearer_user_auth: []
+      summary: Step 2 of a Payment - adds the payment card details to our intent
+      description: combines the card details with our payment intent. This overrides the stripe_event_request which is in sync with stripe as this updates are being sent to stripe as we modify them. This has to handle any other field we need to update. Status = Awaiting Payment OR Status = Processing Payment.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            examples:
+              updating with card info:
+                value:
+                  payment_details:
+                    card_number: 123123123
+                    cvc: 123123
+                  other_fields_to_update:
+                    - field1: value
+                    - field2: value
+                    - field3: value
+              customer clicked pay as a final step, we want to charge card now:
+                value:
+                  confirm_payment: true
+      responses:
+        '200':
+          description: payment intent updated succesfully AND/OR payment confirmation started succesfully
+        '400':
+          description: FIELDS in the request are invalid OR payment is already confirmed, changes are disallowed as per stripe docs "During that time, you should disable your form from being resubmitted and show a waiting indicator like a spinner."
+        '404':
+          description: specified order id does not exist
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'payment is not from order of user'
+        '500':
+          description: unable to push payment intent to stripe. Error details.
+  /webhook:
+    post:
+      tags:
+        - Payments
+      security:
+        - bearer_system_token: []
+      summary: Step 3 we consume updates regarding our payment intent from stripe
+      description: as per the stripe docs we need to not run business logic now, just record what we get. A worker will be triggered to further process the response, for now this hook only verifies the correct transmission of the data. i.e. the JSON is valid for example. Status = Processing Payment. The request expected is as detailed in https://docs.stripe.com/api/events/object and filtered by the type of event we setup to send to webhook on stripe configurations. recorded on stripe_webhook field.
+      responses:
+        '200':
+          description: the event was recieved correctly.
+        '400':
+          description: the event JSON is invalid / malformed
+        '404':
+          description: the order id metadata does not exist/is missing, there is no associated order on our systems to assign this webhook call to.
+        '401':
+          description: token is invalid
+  /files:
+    post:
+      tags:
+        - System
+      security:
+        - bearer_user_auth: []
+      summary: creates a new file
+      description: Requires Write Permission (Manager Upload Permit). This endpoint receives a base64 encoded file, then it uploads it to a CDN, when it gets a response with a url it then creates a file entry with the file metadata like the size and a timestamp.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: photo.png
+              base64: 'aaaaaaaaaaaaadddddddddddddddddd3333333333344444'
+      responses:
+        '200':
+          description: 'file upload in progess'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+  /files/{id}:
+    delete:
+      security:
+        - bearer_user_auth: []
+      tags:
+        - System
+      summary: deletes a file
+      description: Requires Delete Permission (Manager Delete Permit). This endpoint receives file id, then deletes from cdn then deletes the record.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'file deleted'
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+        '500':
+          description: something went wrong when deleting file from cdn. Error details...
+  /carts:
+    post:
+      tags:
+        - Orders
+      security:
+        - bearer_user_auth: []
+      summary: creates a new entry of an item in the cart
+      description: adds a product id + user id entry row to the cart table. Specifies the quantity in the cart. Allows repeated requests as any newer on same product will update the quantity only or override with same values.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              product_id: 3
+              quantity: 1
+      responses:
+        '200':
+          description: ' product created sucesfuly, returns the cart object, the api adds the timestamps and the user that submitted the request'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit'
+  /carts/{user_id}:
+    get:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+        - bearer_system_auth: []
+      summary: gets all the items in a cart
+      description: filters cart rows by the user provided, or system (for example, finish your shopping marketing emails, or discount/low stock alerts.)
+      responses:
+        '200':
+          description: 'cart filtered by user, in the case of system, the user can be another one'
+        '400':
+          description: one or more fields are invalid. returns list of fields and errors.
+        '401':
+          description: 'user not logged in'
+        '403':
+          description: 'user role doenst have the necessary permit, only own cart can be queried'
+  /likes:
+    post:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+      summary: a user submits a product to like.
+      description: This wont fail if the user tries to send a like for an already liked product. The api automatically adds the user id as the one sending the request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              product_id: 5
+      responses:
+        '200':
+          description: 'successfully added to likes/already in likes'
+        '400':
+          description: the product id is not valid.
+        '401':
+          description: 'user not logged in'
+        '429':
+          description: error with rate limit, since we dont fail in case the api is hit many times just rate limit it.
+  /likes/{id}:
+    delete:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+      summary: a user wants to remove a liked product.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'successfully deleted'
+        '400':
+          description: the id format is not valid.
+        '401':
+          description: 'user not logged in'
+        '404':
+          description: the record to be deleted does not exist. was already deleted?
+        '403':
+          description: the record to be deleted does not belong to the client.
+  /promotions:
+    post:
+      tags:
+        - System
+      security:
+        - bearer_system_auth: []
+      summary: A cronjob calls on this endpoint to perform marketing logic.
+      description: Periodically this endpoint is run and checks for marketing conditions. In this case one of them is "When the stock of a product reaches 3, notify the last user that liked it and not purchased the product yet with an email. Tracks failed runs to not do anything if over a parameter and notify sys admin if possible.
+      requestBody:
+        content:
+          application/json:
+            example:
+              cronjob_token: 'sdfjklkjdsfakldsfj;askl;klsfj32419'
+      responses:
+        '200':
+          description: successfully ran the cron job
+        '401':
+          description: token is wrong, someone else is hitting the endpoint
+        '500':
+          description: something went wrong when executing the cronjob. Fail count is 2
+  /emails:
+    post:
+      tags:
+        - System
+      security:
+        - bearer_system_auth: []
+      summary: adds an email to the queue to be sent by worker
+      requestBody:
+        content:
+          application/json:
+            example:
+              mailer_token: 'aslj;fdsakljsadf328481ng'
+              sender_name: Marketing Team
+              sender_address: marketing@email.com
+              recipient_name: Dear XXXXXX XXXXXX Customer
+              recipient_address: XXXX@legit_email.com
+              reply_to email: sales_department@email.com
+              subject: Stock for XXXX is low! Dont miss out!!
+              text_content: the product you liked has only 3 units left!!!!
+              html_content: <h1>the product you liked has only 3 units left!!!!</h1>
+              attachments: [ 1, 3 ,4 ]
+      responses:
+        '202':
+          description: email succesfully added to queue
+        '400':
+          description: values provided for email are invalid. returns a list of invalid fields and reason.
+        '401':
+          description: other system apis are the only ones who call here, they have a .env secret token for mailer, error is for when someone unkonwn tries to use the service.
+        '404':
+          description: attachments provided have ids that do not exist
+  /emails/{id}:
+    put:
+      tags:
+        - System
+      security:
+        - bearer_system_auth: []
+      summary: updates the status of an email job
+      description: if specified in request it returns the email object as to lock and retrieve the data in one go.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            example:
+              new_status: 5
+              include_job: true
+              worker_token: '1284hgasdalksadfh23521'
+
+      responses:
+        '200':
+          description: status updated, includes email object if requested
+        '404':
+          description: job id not found, or status id
+        '400':
+          description: some value was not in the right format or missing
+        '401':
+          description: mailer worker has a .env configured token to authenticate with service. Error returned is if someone else is trying to access the endpoint.
