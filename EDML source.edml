@@ -64,9 +64,10 @@ Table users {
   first_name varchar [not null]
   last_name varchar [not null]
   email email [not null]
+  session_token char(32) [null, note: 'generated same as reset token']
   role_id integer [not null, default: 1]
   created_at timestamp [default: 'now()']
-  last_login_at timestamp [null, note: 'lets assume the user has a session token and that is handled by the app.']
+  last_login_at timestamp [null]
   last_signout_at timestamp [null]
   password_hash char(32) [not null, note: 'md5 + salt']
   password_last_updated timestamp [not null]
@@ -106,6 +107,7 @@ Table likes {
   id integer [primary key]
   client_id integer [not null]
   product_id integer [not null]
+  created_at timestamp [not null, default: 'now()', note: 'for marketing logic']
 }
 
 Table categories {
