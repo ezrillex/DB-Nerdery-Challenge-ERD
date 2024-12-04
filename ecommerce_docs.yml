@@ -686,6 +686,12 @@ paths:
       security:
         - bearer_user_auth: []
         - bearer_system_auth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: integer
       summary: gets all the items in a cart
       description: filters cart rows by the user provided, or system (for example, finish your shopping marketing emails, or discount/low stock alerts.)
       responses:
