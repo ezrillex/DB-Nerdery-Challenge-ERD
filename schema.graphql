@@ -1,0 +1,131 @@
+type Users{
+    first_name: String!
+    last_name: String!
+    id: ID!
+    email: String!
+    session_token: String
+    role: Roles!
+    created_at: String!
+    last_login_at: String
+    last_signout_at: String
+    password_hash: String!
+    password_last_updated: String!
+    failed_login_attempts: Int!
+    failed_login_attempts_timestamps: [String!] # the list is not required as it can be empty
+    password_reset_token: String
+    password_reset_requests: Int!
+    password_reset_requests_tiemstamps: [String!]
+}
+
+type Roles {
+    id: ID!
+    name: String!
+}
+
+type Permits {
+    id: ID!
+    role: Roles!
+    permit: Permissions!
+    isAllowed: Boolean!
+}
+
+type Permissions {
+    id: ID!
+    name: String!
+    appliesToTable: String!
+    appliesToField: String
+}
+
+type Categories {
+    id: ID!
+    name: String!
+}
+
+type Statuses {
+    id: ID!
+    name: String!
+    forTable: String!
+}
+
+type Files {
+    id: Int!
+    name: String!
+    size: Int!
+    url: String!
+    created_at: String!
+}
+
+type Products {
+    id: ID!
+    disabled: Boolean!
+    name: String!
+    details: String!
+    categories: [Categories!]!
+    price: Float!
+    stock: Int!
+    created_by: Users!
+    created_at: String!
+    last_updated_by: Users
+    last_updated_at: String
+    images: [Files!] # list not required as item could not have an image (i.e. unpublished in progress)
+    deleted: Boolean!
+}
+
+type Likes {
+    id: ID!
+    client: Users!
+    product: Products!
+    created_at: String!
+}
+
+type Carts {
+    id: ID!
+    client: Users!
+    product: Products!
+    product_quantity: Int!
+    created_at: String!
+}
+
+type Orders {
+    id: Int!
+    client: Users
+    payments: [Payments!]
+    order_details: [OrderDetails!]!
+    payment_status: Statuses!
+    order_status: Statuses!
+    created_at: String!
+}
+
+type Payments {
+    id: ID!
+    closed: Boolean!
+    payment_status: Statuses!
+    created_at: String!
+    stripe_event_id: String!
+    stripe_api_version: String!
+    stripe_webhook: String # stringified JSON
+    stripe_payment_intent: String #stringified JSON
+
+}
+
+type OrderDetails {
+    id: ID!
+    order: Orders!
+    product: Int!
+    product_quantity: Int!
+    price_purchased_at: Float!
+}
+
+type EmailQueue {
+    id: ID!
+    queue_status: Statuses!
+    sender_name: String
+    sender_address: String!
+    recipient_name: String
+    recipient_address: String!
+    reply_to: String
+    subject: String!
+    text_content: String!
+    html_content: String!
+    attachments: [Files!]
+}
