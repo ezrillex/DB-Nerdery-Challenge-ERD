@@ -71,12 +71,7 @@ type Products {
     deleted: Boolean!
 }
 
-type Likes {
-    id: ID!
-    client: Users!
-    product: Products!
-    createdAt: String!
-}
+
 
 type Carts {
     id: ID!
@@ -128,3 +123,26 @@ type EmailQueue {
     htmlContent: String!
     attachments: [Files!]
 }
+
+type Likes {
+    id: ID!
+    client: Users!
+    product: Products!
+    createdAt: String!
+}
+
+# Likes mutation
+input LikesInput {
+    productLiked: ID!
+    user: ID!
+}
+
+type LikesPayload {
+    errors: String
+    likes: Likes
+}
+
+type Mutation {
+    likeProduct(input: LikesInput!) : LikesPayload!
+}
+
