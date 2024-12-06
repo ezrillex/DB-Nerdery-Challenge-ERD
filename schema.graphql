@@ -1,20 +1,20 @@
 type Users{
-    first_name: String!
-    last_name: String!
+    firstName: String!
+    lastName: String!
     id: ID!
     email: String!
-    session_token: String
+    sessionToken: String
     role: Roles!
-    created_at: String!
-    last_login_at: String
-    last_signout_at: String
-    password_hash: String!
-    password_last_updated: String!
-    failed_login_attempts: Int!
-    failed_login_attempts_timestamps: [String!] # the list is not required as it can be empty
-    password_reset_token: String
-    password_reset_requests: Int!
-    password_reset_requests_tiemstamps: [String!]
+    createdAt: String!
+    lastLoginAt: String
+    lastSignoutAt: String
+    passwordHash: String!
+    passwordLastUpdated: String!
+    failedLoginAttempts: Int!
+    failedLoginAttemptsTimestamps: [String!] # the list is not required as it can be empty
+    passwordResetToken: String
+    passwordResetRequestsCount: Int!
+    passwordResetRequestsTimestamps: [String!]
 }
 
 type Roles {
@@ -52,7 +52,7 @@ type Files {
     name: String!
     size: Int!
     url: String!
-    created_at: String!
+    createdAt: String!
 }
 
 type Products {
@@ -63,10 +63,10 @@ type Products {
     categories: [Categories!]!
     price: Float!
     stock: Int!
-    created_by: Users!
-    created_at: String!
-    last_updated_by: Users
-    last_updated_at: String
+    createdBy: Users!
+    createdAt: String!
+    lastUpdatedBy: Users
+    lastUpdatedAt: String
     images: [Files!] # list not required as item could not have an image (i.e. unpublished in progress)
     deleted: Boolean!
 }
@@ -75,57 +75,56 @@ type Likes {
     id: ID!
     client: Users!
     product: Products!
-    created_at: String!
+    createdAt: String!
 }
 
 type Carts {
     id: ID!
     client: Users!
     product: Products!
-    product_quantity: Int!
-    created_at: String!
+    productQuantity: Int!
+    createdAt: String!
 }
 
 type Orders {
     id: Int!
     client: Users
     payments: [Payments!]
-    order_details: [OrderDetails!]!
-    payment_status: Statuses!
-    order_status: Statuses!
-    created_at: String!
+    orderDetails: [OrderDetails!]!
+    paymentStatus: Statuses!
+    orderStatus: Statuses!
+    createdAt: String!
 }
 
 type Payments {
     id: ID!
     closed: Boolean!
-    payment_status: Statuses!
-    created_at: String!
-    stripe_event_id: String!
-    stripe_api_version: String!
-    stripe_webhook: String # stringified JSON
-    stripe_payment_intent: String #stringified JSON
-
+    paymentStatus: Statuses!
+    createdAt: String!
+    stripeEventId: String!
+    stripeApiVersion: String!
+    stripeWebhook: String # stringified JSON
+    stripePaymentIntent: String #stringified JSON
 }
 
 type OrderDetails {
     id: ID!
     order: Orders!
     product: Int!
-    product_quantity: Int!
-    price_purchased_at: Float!
+    productQuantity: Int!
+    pricePurchasedAt: Float!
 }
 
 type EmailQueue {
     id: ID!
-    queue_status: Statuses!
-    sender_name: String
-    sender_address: String!
-    recipient_name: String
-    recipient_address: String!
-    reply_to: String
+    queueStatus: Statuses!
+    senderName: String
+    senderEmail: String!
+    recipientName: String
+    recipientEmail: String!
+    replyTo: String
     subject: String!
-    text_content: String!
-    html_content: String!
+    textContent: String!
+    htmlContent: String!
     attachments: [Files!]
 }
