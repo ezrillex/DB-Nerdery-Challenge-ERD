@@ -16,13 +16,27 @@ type BaseResponsePayload {
     description: String!
 }
 # can return multiple kinds of errors at once
+interface BaseValidatedResponsePayload {
+    validationErrors: [String!]
+    conditionErrors: [String!]
+    code: Int!
+    description: String
+}
+# can return multiple kinds of errors at once
 type BaseValidatedResponsePayload {
     validationErrors: [String!]
     conditionErrors: [String!]
     code: Int!
     description: String
 }
-
+interface BasePaginationPayload {
+    count: Int!
+    totalCount: Int!
+    currentPage: Int!
+    totalPages: Int!
+    next: Boolean!
+    previous: Boolean!
+}
 
 type Roles {
     id: ID!
@@ -50,9 +64,6 @@ type Users{
     passwordResetRequestsTimestamps: [String!]
 }
 # POST CREATE USER
-# so should we doing the input as if hitting graphql directly and then some other auth business layer
-# or should we model as if the auth layer was hit first then the layer queries graphql
-# scenario 1 request is directly made to graphql, passing minimal parameters
 input CreateUserInput {
     firstName: String!
     lastName: String!
@@ -60,17 +71,7 @@ input CreateUserInput {
     password: String!
     repeatPassword: String!
 }
-# scenario 2 business layer uses graphql to update data fields directly
-input CreateUserBusinessLayerInput {
-    firstName: String! #John
-    lastName: String! #Smith
-    email: String! #John.Smith@email.com
-    role: ID! # id of client role
-    createdAt: String! # timestamp passed by
-    passwordHash: String!
-    passwordLastUpdated: String!
-    passwordResetRequestsCount: Int!
-}
+
 # POST LOGIN
 input UserLoginInput {
     email: String!
@@ -177,6 +178,8 @@ type Payments {
     stripePaymentIntent: String #stringified JSON
 }
 
+# PRODUCTS ENDPOINTS
+#region
 type Products {
     id: ID!
     disabled: Boolean!
@@ -193,7 +196,66 @@ type Products {
     deleted: Boolean!
 }
 
+input GetProductsInput {
+    first: Int!
+    offset: Int!
+    pageSize: Int
+    categoryFilter: [ID!]
+    search: String
+    likedOnly: Boolean
+    omitImages: Boolean
+    sort: String
+}
 
+type GetProductsPayload implements BaseValidatedResponsePayload, BasePaginationPayload {
+    products: [Products!]
+    count: Int!
+    totalCount: Int!
+    currentPage: Int!
+    totalPages: Int!
+    next: Boolean!
+    previous: Boolean!
+    code: Int!
+    conditionErrors: [String!]
+    description: String
+    validationErrors: [String!]
+}
+
+input CreateProductInput {
+    name: String!
+    details: String!
+    categories: [ID!]!
+    price: Float!
+    stock: Int!
+    images: [ID!] # list not required as item could not have an image (i.e. unpublished in progress)
+}
+
+type GetProductPayload implements BaseResponsePayload {
+    code: Int!
+    description: String!
+    product: Products
+}
+# nothing required, if not received assumed no change.
+input UpdateProductInput {
+    disabled: Boolean
+    name: String
+    details: String
+    categories: [ID!]
+    price: Float
+    stock: Int
+    images: [ID!]
+}
+
+extend type Query {
+    getProducts(input: GetProductsInput!) : GetProductsPayload!
+    getProduct(input: ID!) : GetProductPayload!
+}
+extend type Mutation {
+    createProduct(input: CreateProductInput! ) : BaseValidatedResponsePayload!
+    deleteProduct(input: ID!) : BaseResponsePayload!
+    updateProduct(input: UpdateProductInput! ) : BaseValidatedResponsePayload!
+}
+#endregion
 
 # Orders endpoints
 #region
