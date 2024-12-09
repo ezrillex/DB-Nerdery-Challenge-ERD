@@ -1,4 +1,5 @@
 openapi: 3.0.3
+# TODO Get emails job queue endpoint is missing
 info:
   title: Ezra e-commerce
   version: '1.0.0'

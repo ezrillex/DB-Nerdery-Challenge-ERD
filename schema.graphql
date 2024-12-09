@@ -5,6 +5,10 @@ type Mutation {
     _about: String!
 }
 
+type BaseResponsePayload {
+    code: Int!
+    description: String!
+}
 
 type Users{
     firstName: String!
@@ -118,6 +122,8 @@ type OrderDetails {
     pricePurchasedAt: Float!
 }
 
+# Mailer Service Endpoints
+#region
 type EmailQueue {
     id: ID!
     queueStatus: Statuses!
@@ -131,6 +137,56 @@ type EmailQueue {
     htmlContent: String!
     attachments: [Files!]
 }
+# POST Email Job
+input CreateEmailJobInput {
+    senderName: String
+    senderEmail: String!
+    recipientName: String
+    recipientEmail: String!
+    replyToEmail: String
+    subject: String
+    textContent: String!
+    htmlContent: String!
+    attachments: [ID!]
+}
+type CreateEmailJobPayload {
+    validationErrors: [String!]
+    conditionErrors: [String!]
+    resultCode: Int!
+    resultInfo: String
+}
+# GET EMAIL JOBS (worker endpoint)
+input GetEmailJobsInput {
+    limit: Int!
+    status: ID! # id of status to filter by
+}
+type GetEmailJobsPayload {
+    jobs: [ID!] # NOT returning the jobs themselves as the worker would spike in memory usage. I rather it be chatty,
+    #specially when the rate of the worker is defined by parameters and is fixed. Thus N+1 is not out of control.
+    # another way could be to paginate to like 3 items, but still query should be converted to mutation if I want to also lock them.
+    count: Int!
+}
+
+# PUT / UPDATE EMAIL STATUS (worker endpoint)
+input UpdateEmailJobInput {
+    jobId: ID!
+    newStatus: ID!
+}
+type UpdateEmailJobPayload{
+    code: Int! # could error as item is already locked status
+    description: String!
+    jobData: EmailQueue!
+}
+
+extend type Query{
+    getEmailJobs(input: GetEmailJobsInput! ): GetEmailJobsPayload! # worker endpoint
+}
+
+extend type Mutation{
+    createEmailJob(input: CreateEmailJobInput!): CreateEmailJobPayload!
+    updateEmailJob(input: UpdateEmailJobInput!):  UpdateEmailJobPayload!
+}
+#endregion
 
 # Likes endpoints
 #region
