@@ -85,10 +85,18 @@ input UserResetPassword {
     repeatNewPassword: String!
 }
 
+type LoginUserPayload implements BaseValidatedResponsePayload {
+    code: Int!
+    validationErrors: [String!]
+    description: String
+    conditionErrors: [String!]
+    token: String
+}
+
 extend type Mutation {
     createUser(input: CreateUserInput!) : BaseValidatedResponsePayload!
-    loginUser(input: UserLoginInput): BaseValidatedResponsePayload!
-    logoutUser: BaseValidatedResponsePayload! # assumes auth from a different layer is performed first?
+    loginUser(input: UserLoginInput): LoginUserPayload!
+    logoutUser(token: String!): BaseValidatedResponsePayload!
     forgotPassword(email: String!) : BaseValidatedResponsePayload!
     resetPassword(input: UserResetPassword!) : BaseValidatedResponsePayload!
 }
@@ -192,6 +200,7 @@ input UpdatePaymentDetailsInput {
     cardNumber: String!
     expiryDate: String!
     cvc: String!
+    confirmed: Boolean!
 }
 
 input ProcessPaymentInput{
@@ -211,7 +220,9 @@ extend type Query {
 }
 
 extend type Mutation {
+    # STEP 1
     createPayment(input: CreatePaymentInput! ) : BaseValidatedResponsePayload!
+
     updatePaymentDetails(input: UpdatePaymentDetailsInput! ) : BaseValidatedResponsePayload!
 
     # STEP 3 - comes from an API Gateway or a REST endpoint that passes it to graphql as GQL is not supported by Stripe.
