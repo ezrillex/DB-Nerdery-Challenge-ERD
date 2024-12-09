@@ -167,6 +167,8 @@ extend type Mutation {
 }
 #endregion
 
+# PAYMENTS ENDPOINTS
+#region
 type Payments {
     id: ID!
     closed: Boolean!
@@ -177,6 +179,50 @@ type Payments {
     stripeWebhook: String # stringified JSON
     stripePaymentIntent: String #stringified JSON
 }
+
+input CreatePaymentInput {
+    order: ID!
+    stripeApiVersion: String # defaults to 4.3 for example
+    amount: Float
+    currency: String!
+}
+
+# step 2 of payment lifecycle, only these are expected here as this will update de object with stripe.
+input UpdatePaymentDetailsInput {
+    cardNumber: String!
+    expiryDate: String!
+    cvc: String!
+}
+
+input ProcessPaymentInput{
+    closed: Boolean
+    status: ID
+}
+
+type LockPaymentPayload implements BaseResponsePayload {
+    description: String!
+    code: Int!
+    payment: Payments
+}
+
+extend type Query {
+    # STEP 4 A - for worker, webhook only ingested the raw data from stripe.
+    getPaymentsToProcess : [ID!]
+}
+
+extend type Mutation {
+    createPayment(input: CreatePaymentInput! ) : BaseValidatedResponsePayload!
+    updatePaymentDetails(input: UpdatePaymentDetailsInput! ) : BaseValidatedResponsePayload!
+
+    # STEP 3 - comes from an API Gateway or a REST endpoint that passes it to graphql as GQL is not supported by Stripe.
+    stripePaymentWebhook(stripeWebhookJSON: String! ) : BaseResponsePayload! # The basic one as to fail to one http code only.
+
+    # STEP 4 B - Locks the current payment to process and returns the record.
+    lockPayment(id: ID!) : LockPaymentPayload!
+    # STEP 4 C - Worker updates the necessary fields, regarding the payment itself it will just update status.
+    processPayment(input: ProcessPaymentInput!) : BaseResponsePayload!
+}
+#endregion
 
 # PRODUCTS ENDPOINTS
 #region
