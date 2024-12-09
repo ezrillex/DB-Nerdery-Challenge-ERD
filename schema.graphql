@@ -1,3 +1,11 @@
+type Query {
+    _about: String!
+}
+type Mutation {
+    _about: String!
+}
+
+
 type Users{
     firstName: String!
     lastName: String!
@@ -124,25 +132,40 @@ type EmailQueue {
     attachments: [Files!]
 }
 
+# Likes endpoints
+#region
 type Likes {
     id: ID!
     client: Users!
     product: Products!
     createdAt: String!
 }
-
-# Likes mutation
-input LikesInput {
-    productLiked: ID!
+# GET LIKES
+input GetLikesInput {
     user: ID!
 }
-
 type LikesPayload {
     errors: String
     likes: Likes
 }
-
-type Mutation {
-    likeProduct(input: LikesInput!) : LikesPayload!
+extend type Query {
+    getLikes(input: GetLikesInput!) : LikesPayload
 }
-
+# LIKE A PRODUCT and REMOVE A LIKED PRODUCT
+input LikeProductInput {
+    productLiked: ID!
+    user: ID!
+}
+input RemoveLikeInput {
+    likeToRemove: ID!
+}
+type LikeOperationPayload {
+    errors: String
+    likeResultCode: Int!
+    likeResult : String
+}
+extend type Mutation {
+    likeProduct(input: LikeProductInput!) : LikeOperationPayload!
+    removeLike(input: RemoveLikeInput ) : LikeOperationPayload!
+}
+#endregion
