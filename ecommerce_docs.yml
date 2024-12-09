@@ -1,5 +1,7 @@
 openapi: 3.0.3
 # TODO Get emails job queue endpoint is missing
+# TODO Get filess endpoint is missing
+# TODO Get the user cart is missing
 info:
   title: Ezra e-commerce
   version: '1.0.0'
