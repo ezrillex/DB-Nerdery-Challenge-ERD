@@ -526,6 +526,8 @@ paths:
         '500':
           description: unable to create payment intent with stripe. Error details.
     get:
+      tags:
+        - Payments
       summary: Worker endpoint, gets a list of payments to process.
       security:
         - bearer_system_auth: []
