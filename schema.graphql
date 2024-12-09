@@ -5,6 +5,11 @@ type Mutation {
     _about: String!
 }
 # resolves to a single type of error or condition
+interface BaseResponsePayload {
+    code: Int!
+    description: String!
+}
+# resolves to a single type of error or condition
 type BaseResponsePayload {
     code: Int!
     description: String!
@@ -159,6 +164,17 @@ extend type Mutation {
 }
 #endregion
 
+type Payments {
+    id: ID!
+    closed: Boolean!
+    paymentStatus: Statuses!
+    createdAt: String!
+    stripeEventId: String!
+    stripeApiVersion: String!
+    stripeWebhook: String # stringified JSON
+    stripePaymentIntent: String #stringified JSON
+}
+
 type Products {
     id: ID!
     disabled: Boolean!
@@ -177,6 +193,8 @@ type Products {
 
 
 
+# Orders endpoints
+
 type Carts {
     id: ID!
     client: Users!
@@ -184,7 +202,6 @@ type Carts {
     productQuantity: Int!
     createdAt: String!
 }
-
 type Orders {
     id: Int!
     client: Users
@@ -194,18 +211,6 @@ type Orders {
     orderStatus: Statuses!
     createdAt: String!
 }
-
-type Payments {
-    id: ID!
-    closed: Boolean!
-    paymentStatus: Statuses!
-    createdAt: String!
-    stripeEventId: String!
-    stripeApiVersion: String!
-    stripeWebhook: String # stringified JSON
-    stripePaymentIntent: String #stringified JSON
-}
-
 type OrderDetails {
     id: ID!
     order: Orders!
@@ -213,6 +218,23 @@ type OrderDetails {
     productQuantity: Int!
     pricePurchasedAt: Float!
 }
+
+type CartInfoPayload implements BaseResponsePayload{
+    cart: [Carts!]
+    code: Int!
+    description: String!
+}
+
+extend type Query {
+    getCartInfo(client: ID!): CartInfoPayload!
+}
+
+# Marketing endpoint
+extend type Mutation {
+    lowStockPromotionsCronJob : BaseResponsePayload!
+}
+
+
 
 # Mailer Service Endpoints
 #region
