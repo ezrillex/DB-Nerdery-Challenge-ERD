@@ -59,6 +59,8 @@ type Statuses {
     forTable: String!
 }
 
+# Files endpoints
+#region
 type Files {
     id: Int!
     name: String!
@@ -66,6 +68,24 @@ type Files {
     url: String!
     createdAt: String!
 }
+# UPLOAD A FILE
+input CreateFileInput {
+    name: String!
+    base64: String!
+}
+
+# GET A FILE, uncommon. Expectation is to be included in related queries.
+# if not found then is null, no error is raised.
+extend type Query {
+    getFile(input: ID!): Files
+    getFiles(input: [ID!]!): [Files]!
+}
+
+extend type Mutation {
+    createFile(input: CreateFileInput! ): BaseResponsePayload!
+    deleteFile(input: ID!): BaseResponsePayload!
+}
+#endregion
 
 type Products {
     id: ID!
