@@ -6,6 +6,67 @@ Available in dbdiagram.io [https://dbdiagram.io/d/nerdery_challenge_3-674890aae9
 
 Endpoint swagger documentation available here: [https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/](https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/)
 
+# GraphQL --------------------------------
+## Mandatory Features
+
+1. Authentication endpoints (sign up, sign in, sign out, forgot, reset password)
+- Sign Up is **createUser** mutation
+- Sign In is **loginUser** mutation
+- Sign Out is **logoutUser** mutation
+- Forgot is **forgotPassword** mutation
+- Reset Password is **resetPassword** mutation
+2. List products with pagination
+- Provided by **searchProducts** query. This accepts pagination parameters:
+  - first: Int!  
+  - offset: Int!  
+  - pageSize: Int
+3. Search products by category
+- Provided by **searchProducts** query. This accepts search parameters: -
+  - categoryFilter: [ID!]
+  - search: String 
+  - likedOnly: Boolean
+  - sort: String
+4. Add 2 kinds of users (Manager, Client)
+- This is managed by the **Users** type that has **Roles** type relation. 
+5. As a Manager I can:
+    * Create products
+    * Update products
+    * Delete products
+    * Disable products
+    * Show clients orders
+    * Upload images per product.
+6. As a Client I can:
+    * See products
+    * See the product details
+    * Buy products
+    * Add products to cart
+    * Like products
+    * Show my order
+
+BOTH 5 and 6 are covered by **userHasPermission** query which takes the user id and the permission id we want to acess and returns a boolean that it has or doesnt have such permission. If no id is provided anonymous/public permissions are applied. 
+
+7. The product information(included the images) should be visible for logged and not logged users
+- The endpoints **getFile**, **getFiles**, and **searchProducts** are accesible to anonymous users. 
+8. Stripe Integration for payment (including webhooks management)
+
+    The payment lifecycle has many steps this are fullfilled by endpoints:
+   - (1) A payment is created in our system and sent for creation in stripe with **createPayment** mutation. 
+   - (2a) Once the user fills in card info this is sent to stripe in **updatePaymentDetails** mutation.
+   - (2b) If the user confirms in the final step to place order a **updatePaymentDetails** mutation is called with the confirm flag to true, this will signal stripe to go ahead and charge it.
+   - (3) We wait for stripe to send info about how it went in the **stripePaymentWebhook** mutation which is behind a REST front as stipe doesn't support GQL.
+   - (4a) Workers actively scan for new payments to process in **getPaymentsToProcess** query.
+   - (4b) With their list they go one by one using **lockPayment** mutation to get the data and to lock the payment for being processed by some other worker. 
+   - (4c) Once the worker has run some business logic like set order to paid, or issue a refund. It uses **processPayment** mutation to update the status accordingly and close the payment cycle. 
+
+## Extra points
+
+* When the stock of a product reaches 3, notify the last user that liked it and not purchased the product yet with an email.
+  - A cron job hits the **lowStockPromotionsCronJob** endpoint mutation that triggers such logic. , A job is added to the email services by using the **createEmailJob** mutation.
+* Send an email when the user changes the password
+  - When the **resetPassword** mutation (which could be used for  changing the password) is used, a job is added to the email services by using the **createEmailJob** mutation.
+
+
+# REST -----------------------------------
 ## **Mandatory Features**
 
 ### 1\. Authentication endpoints (sign up, sign in, sign out, forgot, reset password)  
