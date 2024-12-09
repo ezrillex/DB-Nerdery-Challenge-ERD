@@ -1,3 +1,4 @@
+# everything extends these but I am checking some other docs that define for example UserQuery, so what is better, one for each or a shared one?
 type Query {
     _about: String!
 }
@@ -21,6 +22,7 @@ type BaseValidatedResponsePayload {
     code: Int!
     description: String
 }
+
 
 type Roles {
     id: ID!
@@ -194,14 +196,7 @@ type Products {
 
 
 # Orders endpoints
-
-type Carts {
-    id: ID!
-    client: Users!
-    product: Products!
-    productQuantity: Int!
-    createdAt: String!
-}
+#region
 type Orders {
     id: Int!
     client: Users
@@ -219,6 +214,47 @@ type OrderDetails {
     pricePurchasedAt: Float!
 }
 
+type ListAllOrderdsPayload implements BaseResponsePayload{
+    orders: [Orders!]
+    description: String!
+    code: Int!
+}
+
+input CreateOrderInput {
+    itemsToBuy: [ID!] #cart ids / selected items to buy, allow for leaving things in the cart.
+    otherInfo: String! # shipping maybe? to be defined.
+}
+
+type allOrderDetailsPayload implements BaseResponsePayload {
+    description: String!
+    code: Int!
+    orders: [Orders!]
+}
+
+type orderDetailsPayload implements BaseResponsePayload{
+    order: Orders!
+    code: Int!
+    description: String!
+}
+
+extend type Query {
+    listAllOrders(first: Int!, offset: Int!) : allOrderDetailsPayload!
+    orderDetails(order: ID!) : orderDetailsPayload!
+}
+extend type Mutation {
+    createOrder(input: CreateOrderInput) : BaseValidatedResponsePayload!
+}
+#endregion
+
+# CART ENDPOINTS
+#region
+type Carts {
+    id: ID!
+    client: Users!
+    product: Products!
+    productQuantity: Int!
+    createdAt: String!
+}
 type CartInfoPayload implements BaseResponsePayload{
     cart: [Carts!]
     code: Int!
@@ -229,12 +265,18 @@ extend type Query {
     getCartInfo(client: ID!): CartInfoPayload!
 }
 
+# more readable In my opinion, when to use the type Input separation? or is it hard rule to use it.
+extend type Mutation {
+    addToCart(client: ID!, product: ID!, quantity: Int!): BaseResponsePayload!
+    removeFromCart(client: ID! product: ID!) : BaseResponsePayload!
+    modifyQuantityCart(client: ID!, product: ID!, newQuantity: Int!): BaseResponsePayload!
+}
+#endregion
+
 # Marketing endpoint
 extend type Mutation {
     lowStockPromotionsCronJob : BaseResponsePayload!
 }
-
-
 
 # Mailer Service Endpoints
 #region
