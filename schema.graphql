@@ -4,18 +4,32 @@ type Query {
 type Mutation {
     _about: String!
 }
-
+# resolves to a single type of error or condition
 type BaseResponsePayload {
     code: Int!
     description: String!
 }
+# can return multiple kinds of errors at once
+type BaseValidatedResponsePayload {
+    validationErrors: [String!]
+    conditionErrors: [String!]
+    code: Int!
+    description: String
+}
 
+type Roles {
+    id: ID!
+    name: String!
+}
+
+# USERS/Auth ENDPOINTS
+#region
 type Users{
     firstName: String!
     lastName: String!
     id: ID!
     email: String!
-    sessionToken: String
+    sessionToken: String # hashed
     role: Roles!
     createdAt: String!
     lastLoginAt: String
@@ -24,16 +38,56 @@ type Users{
     passwordLastUpdated: String!
     failedLoginAttempts: Int!
     failedLoginAttemptsTimestamps: [String!] # the list is not required as it can be empty
-    passwordResetToken: String
+    passwordResetToken: String # hashed
     passwordResetRequestsCount: Int!
     passwordResetRequestsTimestamps: [String!]
 }
-
-type Roles {
-    id: ID!
-    name: String!
+# POST CREATE USER
+# so should we doing the input as if hitting graphql directly and then some other auth business layer
+# or should we model as if the auth layer was hit first then the layer queries graphql
+# scenario 1 request is directly made to graphql, passing minimal parameters
+input CreateUserInput {
+    firstName: String!
+    lastName: String!
+    email: String!
+    password: String!
+    repeatPassword: String!
+}
+# scenario 2 business layer uses graphql to update data fields directly
+input CreateUserBusinessLayerInput {
+    firstName: String! #John
+    lastName: String! #Smith
+    email: String! #John.Smith@email.com
+    role: ID! # id of client role
+    createdAt: String! # timestamp passed by
+    passwordHash: String!
+    passwordLastUpdated: String!
+    passwordResetRequestsCount: Int!
+}
+# POST LOGIN
+input UserLoginInput {
+    email: String!
+    password: String!
 }
 
+# POST RESET
+input UserResetPassword {
+    resetToken: String!
+    newPassword: String!
+    repeatNewPassword: String!
+}
+
+extend type Mutation {
+    createUser(input: CreateUserInput!) : BaseValidatedResponsePayload!
+    loginUser(input: UserLoginInput): BaseValidatedResponsePayload!
+    logoutUser: BaseValidatedResponsePayload! # assumes auth from a different layer is performed first?
+    forgotPassword(email: String!) : BaseValidatedResponsePayload!
+    resetPassword(input: UserResetPassword!) : BaseValidatedResponsePayload!
+}
+#endregion
+
+# Permission endpoints
+#region
 type Permits {
     id: ID!
     role: Roles!
@@ -48,6 +102,23 @@ type Permissions {
     appliesToField: String
 }
 
+#
+input UserHasPermissionInput {
+    user: ID # if no id is passed, assumes anonymous, check permits for public role
+    permission: ID!
+}
+
+type UserHarPermissionPayload {
+    isAllowed: Boolean!
+    errors: String
+    errorCode: Int
+}
+
+extend type Query {
+    userHasPermission(input: UserHasPermissionInput! ) : UserHarPermissionPayload!
+}
+#endregion
+
 type Categories {
     id: ID!
     name: String!
@@ -58,6 +129,7 @@ type Statuses {
     name: String!
     forTable: String!
 }
+
 
 # Files endpoints
 #region
@@ -169,12 +241,7 @@ input CreateEmailJobInput {
     htmlContent: String!
     attachments: [ID!]
 }
-type CreateEmailJobPayload {
-    validationErrors: [String!]
-    conditionErrors: [String!]
-    resultCode: Int!
-    resultInfo: String
-}
+
 # GET EMAIL JOBS (worker endpoint)
 input GetEmailJobsInput {
     limit: Int!
@@ -203,7 +270,7 @@ extend type Query{
 }
 
 extend type Mutation{
-    createEmailJob(input: CreateEmailJobInput!): CreateEmailJobPayload!
+    createEmailJob(input: CreateEmailJobInput!): BaseValidatedResponsePayload!
     updateEmailJob(input: UpdateEmailJobInput!):  UpdateEmailJobPayload!
 }
 #endregion
