@@ -44,7 +44,7 @@ Enum queue_status {
 }
 
 enum payments_statuses{
-  requirements_payment_method
+  requires_payment_method
   requires_confirmation
   requires_action
   processing
@@ -65,8 +65,8 @@ Table users {
   first_name varchar [not null]
   last_name varchar [not null]
   email email [not null]
-  session_token char(32) [null, note: 'generated same as reset token']
-  role_id integer [not null, default: 1]
+  session_token char(64) [null, note: 'generated same as reset token']
+  role_id uuid [not null, default: 1]
   created_at timestamp [default: 'now()']
   last_login_at timestamp [null]
   last_signout_at timestamp [null]
@@ -93,11 +93,12 @@ Table products {
   deleted boolean [default: false, not null]
 }
 
+// this is the famous SKU, maybe later refactor as SKU once I figure out multi variations
+// design decision a single dropdown for only one variation kind. ie. color and capacity mixes for iphone is a 4 item list for 2 colors and 2 capacities.
 Table product_variations {
   id uuid [primary key]
   product_id uuid [not null]
   variation_title string [not null, note: 'Limit to what a dropdown puede tener']
-  variation_description string [null]
   price numeric [not null, default: 0]
   stock int [not null, default: 0]
   images uuid[] [null]
@@ -118,6 +119,7 @@ Table likes {
   id uuid [primary key]
   client_id uuid [not null]
   product_id uuid [not null]
+  variation_id uuid [not null]
   created_at timestamp [not null, default: 'now()', note: 'for marketing logic']
 }
 
@@ -136,7 +138,8 @@ Table permits {
 Table cart {
   id uuid [primary key]
   client_id uuid [not null]
-  product_id uuid unique [not null]
+  product_id uuid [not null]
+  variation_id uuid unique [not null]
   product_qty integer [not null, default: 1, note: 'assume we don-t sell fractions like a supermarket (0.5 kg of beef i.e.)']
   added_at timestamp [not null, default: 'now()']
 }
@@ -160,6 +163,7 @@ Table order_details {
   id uuid [primary key]
   order_id uuid [not null]
   product_id uuid [not null]
+  variation_id uuid [not null]
   product_qty integer [not null]
   price_purchased_at numeric [not null]
 }
@@ -235,3 +239,6 @@ Ref: "payment_intents"."id" < "payments_audit"."payment_id"
 Ref: "orders"."id" < "incoming_payment_webhooks"."order_id"
 Ref: "orders"."id" < "order_status_changes"."order_id"
 Ref: "orders"."id" < "payment_intents"."order_id"
+Ref: "cart"."variation_id" < "product_variations"."id"
+Ref: "order_details"."variation_id" < "product_variations"."id"
+Ref: "product_variations"."id" < "likes"."variation_id"
