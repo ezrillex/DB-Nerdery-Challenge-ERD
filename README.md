@@ -67,6 +67,8 @@ BOTH 5 and 6 are covered by **userHasPermission** query which takes the user id 
 
 
 # REST -----------------------------------
+## WIP!
+# DB Design (outdated) -----------------------
 ## **Mandatory Features**
 
 ### 1\. Authentication endpoints (sign up, sign in, sign out, forgot, reset password)  
