@@ -308,7 +308,8 @@ paths:
           required: true
           name: id
           schema:
-            type: integer
+            type: string
+            format: uuid
       responses:
         '200':
           description: a product object with the extra field of liked if user is logged in and of type client.
@@ -512,7 +513,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       security:
         - bearer_user_auth: []
       tags:
@@ -601,7 +603,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       requestBody:
         content:
           application/json:
@@ -631,7 +634,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       requestBody:
         content:
           application/json:
@@ -727,7 +731,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       responses:
         '200':
           description: 'file deleted'
@@ -781,7 +786,8 @@ paths:
           name: user_id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       summary: 'Retrieves all items in a cart'
       description: >
         Auth: Bearer
@@ -843,7 +849,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       responses:
         '200':
           description: 'successfully deleted'
@@ -925,7 +932,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       requestBody:
         content:
           application/json:
