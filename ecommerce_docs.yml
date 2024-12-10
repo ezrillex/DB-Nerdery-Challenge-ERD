@@ -3,8 +3,8 @@ openapi: 3.0.3
 # TODO Get filess endpoint is missing
 # TODO Get the user cart is missing
 info:
-  title: Ezra e-commerce
-  version: '1.0.0'
+  title: Ezra Shop
+  version: '1.1.0'
 components:
   securitySchemes:
     bearer_user_auth:
