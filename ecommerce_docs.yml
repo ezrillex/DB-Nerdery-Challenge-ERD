@@ -91,7 +91,7 @@ paths:
         This endpoint updates the 'last logged at' timestamp to record the user's logout. If multiple logout attempts are made, the request will fail. Additionally, the operation will fail if the user's login session has already expired.
       responses:
         '200':
-          description: logged out succesfully!
+          description: "logged out succesfully! clears session token"
         '400':
           $ref: "#/components/responses/400"
         '401':
@@ -311,7 +311,7 @@ paths:
 
       responses:
         '200':
-          description: ' product created sucesfuly, returns the product object, the api updates the timestamps and tracks the id of the user to the created by'
+          description: ' product created sucesfuly, returns the product id, the api updates the timestamps and tracks the id of the user to the created by'
         '400':
           $ref: "#/components/responses/400"
         '401':
@@ -325,10 +325,11 @@ paths:
       security:
         - public_no_auth: []
         - bearer_user_auth: []
-      summary: 'gets a specific product by id'
-      description: 'some of the details like if the product has been like are included in the case of a client.'
       summary: 'Gets a specific product by id'
       description: |
+        Auth: Public, Bearer
+        
+        some of the details like if the product has been like are included in the case of a client.
       parameters:
         - in: path
           required: true
@@ -374,7 +375,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -416,7 +418,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
+            type: string
+            format: uuid
       responses:
         '200':
           description: 'delete successful OR product already deleted'
@@ -843,7 +846,7 @@ paths:
   /carts/{user_id}:
     get:
       tags:
-        - Products
+        - Orders
       security:
         - bearer_user_auth: []
         - bearer_system_auth: []
