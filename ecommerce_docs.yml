@@ -754,6 +754,38 @@ paths:
           $ref: '#/components/responses/404'
         '401':
           $ref: '#/components/responses/401'
+  /webhook/{id}:
+    post:
+      tags:
+        - Payments
+      security:
+        - bearer_system_auth: []
+      summary: 'Step 4b worker wants to get the webhook data to process and lock it while working'
+      description: >
+        Auth: Bearer
+        
+        
+        With their list they go one by one using this endpoint to get the data and to lock the payment for being processed by some other worker. This endpoint also is used to update the status of webhook jobs.
+      requestBody:
+        content:
+          application/json:
+            example:
+              lock: true
+              status: in_progress
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: webhook job data
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: '#/components/responses/401'
   /files:
     post:
       tags:
