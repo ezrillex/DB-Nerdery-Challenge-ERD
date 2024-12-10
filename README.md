@@ -67,7 +67,61 @@ BOTH 5 and 6 are covered by **userHasPermission** query which takes the user id 
 
 
 # REST -----------------------------------
-## WIP!
+1. Authentication endpoints (sign up, sign in, sign out, forgot, reset password)
+- Sign Up is **/users POST**
+- Sign In is **/auth/login POST**
+- Sign Out is **/auth/logout POST**
+- Forgot is **/auth/forgot POST** 
+- Reset Password is **/auth/reset POST**
+2. List products with pagination
+- Provided by **/products GET**. This accepts pagination parameters:
+    - page: Int
+    - page_size: Int!
+3. Search products by category
+- Provided by **/products GET**. This accepts search parameters: -
+    - category : id array
+    - search: String
+    - likes: Boolean
+    - sort_by: String
+4. Add 2 kinds of users (Manager, Client)
+- This is managed by the **Users** table that has **Roles, Permissions, Permits** table relations.
+5. As a Manager I can:
+    * Create products
+    * Update products
+    * Delete products
+    * Disable products
+    * Show clients orders
+    * Upload images per product.
+6. As a Client I can:
+    * See products
+    * See the product details
+    * Buy products
+    * Add products to cart
+    * Like products
+    * Show my order
+
+**BOTH** **5** and **6** are covered by each endpoint which checks permits table to see if role has such a permission and returns 401 or 403 depending on the scenario. 
+
+7. The product information(included the images) should be visible for logged and not logged users
+- The endpoints **/products GET** and **/products/id GET** includes the image cdn links by default, this endpoint is accessible to anonymous users. Such cdn links are public. No private links should exist in this table. Such requirement would be preferrable to build a different table like private_files.
+8. Stripe Integration for payment (including webhooks management)
+
+   The payment lifecycle has many steps this are fullfilled by endpoints:
+    - (1) A payment is created in our system and sent for creation in stripe with **/payments POST** endpoint. 
+    - (2a) Once the user fills in card info this is sent to stripe in **/payments/id PUT** endpoint.
+    - (2b) If the user confirms in the final step to place order a **/payments/id PUT** endpoint is called with the confirm flag to true, this will signal stripe to go ahead and charge it.
+    - (3) We wait for stripe to send info about how it went in the **/webhook POST endpoint**.
+    - (4a) Workers actively scan for new payments to process in **/payments GET** worker endpoint, which has pre-configured filters. 
+    - (4b) With their list they go one by one using **/webhook/id POST** to get the data and to lock the payment for being processed by some other worker.
+    - (4c) Once the worker has run some business logic like set order to paid, or issue a refund. It uses **/payments/id POST** to update the payment and **/webhook/id POST** to update the status accordingly and close the payment cycle.
+    - Additional calls to other endpoints might be done depending on business logic. Such as setting an order status to paid or sending update emails.
+
+## Extra points
+
+* When the stock of a product reaches 3, notify the last user that liked it and not purchased the product yet with an email.
+    - A cron job hits the **/promotions POST** endpoint mutation that triggers such logic. , A job is added to the email services by using the **createEmailJob** mutation.
+* Send an email when the user changes the password
+    - When the **/auth/reset** POST endpoint (which could be used for  changing the password) is used, a job is added to the email services by using the **/emails POST** endpoint.
 # DB Design (outdated) -----------------------
 ## **Mandatory Features**
 
