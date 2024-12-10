@@ -291,9 +291,24 @@ paths:
             example:
               name: Apple iPhone SE 2025
               details: The all new BUDGET iphone SE with AI ......
-              price: 999.99
-              stock: 3000
-              images: [1,2,3,4,6]
+              variations:
+                - title: 128 GB - Red Color
+                  price: 999.99
+                  stock: 3000
+                  images: [3,4]
+                - title: 256 GB - Red Color
+                  price: 1999.99
+                  stock: 3000
+                  images: [1,2]
+                - title: 128 GB - Blue Color
+                  price: 999.99
+                  stock: 3000
+                  images: [1,2]
+                - title: 256 GB - Blue Color
+                  price: 1999.99
+                  stock: 3000
+                  images: [3,4]
+
       responses:
         '200':
           description: ' product created sucesfuly, returns the product object, the api updates the timestamps and tracks the id of the user to the created by'
@@ -328,10 +343,10 @@ paths:
             application/json:
               examples:
                 search result:
-                  value: |-
+                  value:
                     {
-                        ...data,
-                        liked: boolean
+                      data: {},
+                      liked: boolean
                     }
         '404':
           $ref: "#/components/responses/404"
@@ -367,10 +382,13 @@ paths:
             example:
               name: Apple iPhone SE 2025
               details: The all new BUDGET iphone SE with AI ......
-              price: 999.99
-              stock: 3000
-              images: [1,2,3,4,6]
-              disabled: false
+              published: false
+              variations:
+                - title: 1000 GB - Titanium Color
+                  price: 9999.99
+                  stock: 3000
+                  images: [6,7]
+                  published: true
       responses:
         '200':
           description: ' product created sucesfuly updated, returns the updated object, the api updates the timestamps and tracks the id of the user to the updated by, any omitted field is not updated.'
@@ -402,6 +420,42 @@ paths:
       responses:
         '200':
           description: 'delete successful OR product already deleted'
+        '404':
+          $ref: "#/components/responses/404"
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: "#/components/responses/403"
+  /products/{product_id}/variation/{variation_id}:
+    delete:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+      summary: 'marks a product as deleted'
+      description: |
+        Auth: Bearer
+        
+        
+        This endpoint updates the "deleted" field of a specified product variation to true instead of performing a cascading delete. By marking the product as deleted, it is excluded from queries, except where its presence is required, such as in historical orders. This approach ensures that products remain identifiable for cleanup tasks once associated orders are finalized.
+      parameters:
+        - in: path
+          name: product_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: variation_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 'delete successful OR variation already deleted'
         '404':
           $ref: "#/components/responses/404"
         '400':
@@ -775,6 +829,7 @@ paths:
           application/json:
             example:
               product_id: 3
+              variation_id: 4
               quantity: 1
       responses:
         '200':
@@ -834,6 +889,7 @@ paths:
           application/json:
             example:
               product_id: 5
+              variation_id: 4
       responses:
         '200':
           description: 'successfully added to likes/already in likes'
@@ -843,7 +899,7 @@ paths:
           $ref: '#/components/responses/401'
         '429':
           $ref: '#/components/responses/429'
-  /likes/{id}:
+  /likes/{product_id}/variation/{variation_id}:
     delete:
       tags:
         - Products
@@ -857,7 +913,13 @@ paths:
         404 happens if the delete is called again for the same ids. For reduced complexity the like is removed using the product variation id combo. This saves us like id handling.
       parameters:
         - in: path
-          name: id
+          name: product_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: variation_id
           required: true
           schema:
             type: string
