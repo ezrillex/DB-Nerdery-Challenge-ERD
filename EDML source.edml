@@ -1,7 +1,7 @@
 
 
 Table roles {
-  id integer [primary key]
+  id uuid [primary key]
   role_name varchar
 }
 /*example values
@@ -13,12 +13,12 @@ Table roles {
   view_self
   upload*/
 Table permissions {
-  id integer [primary key]
+  id uuid [primary key]
   name varchar [not null]
   applies_to_table varchar [not null]
   applies_to_column varchar [null, default: 'if null then access to whole row?']
 }
-/*
+
 Enum pay_status{
   pending
   paid
@@ -43,24 +43,25 @@ Enum queue_status {
   failed
 }
 
-Payments statuses:
-requirements_payment_method
-requires_confirmation
-requires_action
-processing
-succeded
-cancelled
-*/
-
-Table statuses {
-  id integer [primary key]
-  name varchar [not null]
-  owner varchar [not null, note: 'what table uses it, more for data entry']
+enum payments_statuses{
+  requirements_payment_method
+  requires_confirmation
+  requires_action
+  processing
+  succeded
+  cancelled
 }
 
+enum webhook_statuses {
+  pending
+  batched_locked
+  processing
+  done
+  error
+}
 
 Table users {
-  id integer [primary key]
+  id uuid [primary key]
   first_name varchar [not null]
   last_name varchar [not null]
   email email [not null]
@@ -78,24 +79,34 @@ Table users {
   password_reset_requests_tiemstamps timestamp[]
 }
 
+// renamed disabled to publish
 Table products {
-  id integer [primary key]
-  disabled boolean [default: true]
+  id uuid [primary key]
+  published boolean [default: true]
   name varchar [not null]
   details varchar [not null]
   category_id integer[] [null]
-  price numeric [not null, default: 0]
-  stock int [not null, default: 0]
   created_by integer [not null]
   created_at timestamp [default: 'now()']
   last_updated_by integer [null]
   last_updated_at timestamp [null]
+  deleted boolean [default: false, not null]
+}
+
+Table product_variations {
+  id uuid [primary key]
+  product_id uuid [not null]
+  variation_title string [not null, note: 'Limit to what a dropdown puede tener']
+  variation_description string [null]
+  price numeric [not null, default: 0]
+  stock int [not null, default: 0]
   images integer[] [null]
+  published boolean [default: true]
   deleted boolean [default: false, not null]
 }
 
 Table files {
-  id integer [primary key]
+  id uuid [primary key]
   name varchar [not null]
   size integer [not null, note: 'in bytes']
   url varchar [note: 'URL TO THE CDN HOSTED FILE']
@@ -104,27 +115,26 @@ Table files {
 
 // the existence of a product here means there is a like.
 Table likes {
-  id integer [primary key]
-  client_id integer [not null]
+  id uuid [primary key]
+  client_id uuid [not null]
   product_id integer [not null]
   created_at timestamp [not null, default: 'now()', note: 'for marketing logic']
 }
 
 Table categories {
-  id integer [primary key]
+  id uuid [primary key]
   name varchar [not null]
 }
 
 // calls made to endpoints from users have to first query if there is a permission setup for the action they are trying to perform
 Table permits {
-  id integer [primary key]
+  id uuid [primary key]
   role_id integer [not null]
   permit integer [not null]
-  is_allowed boolean [not null]
 }
 
 Table cart {
-  id integer [primary key]
+  id uuid [primary key]
   client_id integer [not null]
   product_id integer unique [not null]
   product_qty integer [not null, default: 1, note: 'assume we don-t sell fractions like a supermarket (0.5 kg of beef i.e.)']
@@ -132,39 +142,63 @@ Table cart {
 }
 
 Table orders {
-  id integer [primary key]
+  id uuid [primary key]
   client_id integer [not null]
-  payment_id integer[] [null]
+  payments integer[] [null]
   order_details_id integer[] [not null]
-  payment_status integer [not null, default: 'id of pending']
-  order_status integer [not null, default: 'pending_fulfillment']
+  payment_status payments_statuses [not null, default: 'id of pending']
+  order_status order_status [not null, default: 'pending_fulfillment']
   created_at timestamp [default: 'now()']
 }
 
 Table order_details {
-  id integer [primary key]
+  id uuid [primary key]
   order_id integer [not null]
   product_id integer [not null]
   product_qty integer [not null]
   price_purchased_at numeric [not null]
 }
 
-Table payments {
-  id integer [primary key]
+Table payment_intents {
+  id uuid [primary key]
   closed boolean [not null, default: false]
-  payment_status integer [not null, default: 'pending id']
+  payment_status payments_statuses [not null, default: 'pending id']
+  created_at timestamp [not null, default: 'now()']
+  stripe_event_id varchar [null]
+  stripe_api_version varchar [null]
+  stripe_payment_intent JSON [not null, note: 'the request that is sent']
+}
+
+// no audit needed since we dont do updates to the data here.
+Table incoming_payment_webhooks {
+  id uuid [primary key]
+  order_id uuid [null, note: 'nullable in case request received is garbled or has invalid order id']
+  status webhook_statuses [not null, default: 'pending']
+  data JSON [not null]
+  created_at timestamp [not null]
+  processed_at timestamp [null, note: 'set when worker performs business logic and collapses to done or error status']
+}
+
+// one row per status update/ any change
+Table payments_audit {
+  id uuid [primary key]
+  snapshot_timestamp timestamp [not null, default: 'now()']
+  // keep in sync with payment intent columns
+  payment_id uuid [not null]
+  closed boolean [not null, default: false]
+  payment_status payments_statuses [not null, default: 'pending id']
   created_at timestamp [not null, default: 'now()']
   stripe_event_id varchar [null]
   stripe_api_version varchar [null]
   stripe_webhook JSON [null]
   stripe_payment_intent JSON [not null, note: 'the request that is sent']
-}
 
+}
 
 // consumed by mailer worker
 Table email_queue {
-  id integer [primary key]
-  queue_status integer [not null, default: 'id of pending']
+  id uuid [primary key]
+  queue_status queue_status [not null, default: 'id of pending']
   sender_name varchar [null]
   sender_address email [not null]
   recipient_name varchar [null]
@@ -185,20 +219,12 @@ Ref: cart.product_id > products.id
 Ref: orders.order_details_id < order_details.order_id
 Ref: users.id < orders.id
 Ref: email_queue.attachments <> files.id
-Ref: products.images <> files.id
-Ref: orders.payment_id < payments.id
+Ref: product_variations.images <> files.id
+Ref: orders.payments < payment_intents.id
 Ref: order_details.product_id > products.id
-
 Ref: "permissions"."id" < "permits"."permit"
-
 Ref: "roles"."id" < "permits"."role_id"
-
 Ref: "roles"."id" < "users"."role_id"
-
-Ref: "orders"."payment_status" < "statuses"."id"
-
-Ref: "orders"."order_status" < "statuses"."id"
-
-Ref: "email_queue"."queue_status" < "statuses"."id"
-
-Ref: "payments"."payment_status" < "statuses"."id"
+Ref: "products"."id" < "product_variations"."product_id"
+Ref: "payment_intents"."id" < "payments_audit"."payment_id"
+Ref: "orders"."id" < "incoming_payment_webhooks"."order_id"
