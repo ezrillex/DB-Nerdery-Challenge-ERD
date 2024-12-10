@@ -20,25 +20,20 @@ components:
     '401':
       description: 'The provided authentication token is not valid (user is not logged in or token expired). Or a parameter requires more permissions than the requestor has.'
     '400':
-      description: 'There are validations erros, format of values is wrong or not as expected or do not meet specified conditions.'
+      description: 'There are validations erros, format of values is wrong or not as expected or do not meet specified conditions. The response includes a list of multiple validation or more complex conditional errors.'
       content:
         application/json:
           example:
             validation_errors:
               - field: 'password1'
                 reason: 'value is not valid. Received a string with length of 2000. Maximum is 32.'
-              - field: 'password2'
-                reason: 'value is not valid. Received an empty string'
             condition_errors:
-              - condition: 'is_token_expired'
-                reason: 'The token received is expired'
               - condition: 'passwords_match'
                 reason: 'password1 value does not match with password2 value'
-
     '404':
       description: 'The data requested could not be found or the results count is 0.'
     '429':
-      description: 'Too many requests, requests are being rate limited.'
+      description: 'Too many requests, requests rate limit exceeded.'
     '403':
       description: 'The user making the request lacks the necessary permissions, or the data required does not belong to the user.'
 paths:
