@@ -85,8 +85,8 @@ Table products {
   published boolean [default: true]
   name varchar [not null]
   details varchar [not null]
-  category_id integer[] [null]
-  created_by integer [not null]
+  category_id uuid[] [null]
+  created_by uuid [not null]
   created_at timestamp [default: 'now()']
   last_updated_by integer [null]
   last_updated_at timestamp [null]
@@ -100,7 +100,7 @@ Table product_variations {
   variation_description string [null]
   price numeric [not null, default: 0]
   stock int [not null, default: 0]
-  images integer[] [null]
+  images uuid[] [null]
   published boolean [default: true]
   deleted boolean [default: false, not null]
 }
@@ -117,7 +117,7 @@ Table files {
 Table likes {
   id uuid [primary key]
   client_id uuid [not null]
-  product_id integer [not null]
+  product_id uuid [not null]
   created_at timestamp [not null, default: 'now()', note: 'for marketing logic']
 }
 
@@ -129,38 +129,44 @@ Table categories {
 // calls made to endpoints from users have to first query if there is a permission setup for the action they are trying to perform
 Table permits {
   id uuid [primary key]
-  role_id integer [not null]
+  role_id uuid [not null]
   permit integer [not null]
 }
 
 Table cart {
   id uuid [primary key]
-  client_id integer [not null]
-  product_id integer unique [not null]
+  client_id uuid [not null]
+  product_id uuid unique [not null]
   product_qty integer [not null, default: 1, note: 'assume we don-t sell fractions like a supermarket (0.5 kg of beef i.e.)']
   added_at timestamp [not null, default: 'now()']
 }
 
 Table orders {
   id uuid [primary key]
-  client_id integer [not null]
-  payments integer[] [null]
-  order_details_id integer[] [not null]
+  client_id uuid [not null]
   payment_status payments_statuses [not null, default: 'id of pending']
   order_status order_status [not null, default: 'pending_fulfillment']
-  created_at timestamp [default: 'now()']
+  created_at timestamp [not null, default: 'now()']
+}
+
+Table order_status_changes {
+  id uuid [primary key]
+  order_id uuid [not null]
+  status order_status [not null]
+  event_timestamp timestamp [not null, default: 'now()']
 }
 
 Table order_details {
   id uuid [primary key]
-  order_id integer [not null]
-  product_id integer [not null]
+  order_id uuid [not null]
+  product_id uuid [not null]
   product_qty integer [not null]
   price_purchased_at numeric [not null]
 }
 
 Table payment_intents {
   id uuid [primary key]
+  order_id uuid [not null]
   closed boolean [not null, default: false]
   payment_status payments_statuses [not null, default: 'pending id']
   created_at timestamp [not null, default: 'now()']
@@ -207,7 +213,7 @@ Table email_queue {
   subject varchar [not null]
   text_content varchar [null, note: 'we need the app to check if the other is null, both cant be null']
   html_content varchar [null, note: 'we need the app to check if the other is null, both cant be null']
-  attachments integer[] [null]
+  attachments uuid[] [null]
 }
 
 Ref: likes.client_id > users.id
@@ -216,11 +222,10 @@ Ref: users.id < products.created_by
 Ref: categories.id <> products.category_id
 Ref: cart.client_id - users.id
 Ref: cart.product_id > products.id
-Ref: orders.order_details_id < order_details.order_id
-Ref: users.id < orders.id
+Ref: orders.id < order_details.order_id
+Ref: users.id < orders.client_id
 Ref: email_queue.attachments <> files.id
 Ref: product_variations.images <> files.id
-Ref: orders.payments < payment_intents.id
 Ref: order_details.product_id > products.id
 Ref: "permissions"."id" < "permits"."permit"
 Ref: "roles"."id" < "permits"."role_id"
@@ -228,3 +233,5 @@ Ref: "roles"."id" < "users"."role_id"
 Ref: "products"."id" < "product_variations"."product_id"
 Ref: "payment_intents"."id" < "payments_audit"."payment_id"
 Ref: "orders"."id" < "incoming_payment_webhooks"."order_id"
+Ref: "orders"."id" < "order_status_changes"."order_id"
+Ref: "orders"."id" < "payment_intents"."order_id"
