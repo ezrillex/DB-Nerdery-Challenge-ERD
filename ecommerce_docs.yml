@@ -60,6 +60,17 @@ paths:
         '200':
           description: >-
             credentials are valid, responds with user object. resets failed login attempts. Updates last login at. and clears the password reset timestamps and returns the session token for the user to authenticate to server in further requests.
+          content:
+            application/json:
+              example:
+                token: 'yLqUwVVw5EYuL3vJQFVDH9RqJUUIR0o2XiK3wwqKXHz1GgL6pUu5XOBOMHYBp5Ed'
+                expires: '1990-03-02 08:30:00.010000000000'
+                user:
+                  id: 'uuid string'
+                  first_name: 'John'
+                  last_name: 'Smith'
+                  role: 'client'
+                  email: 'johnsmith@gmail.com'
         '400':
           $ref: "#/components/responses/400"
         '404':
