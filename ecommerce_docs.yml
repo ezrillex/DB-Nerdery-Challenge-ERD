@@ -43,8 +43,12 @@ paths:
         - public_no_auth: []
       tags:
         - Authentication
-      summary: 'Authenticates user credentials with the server and provides the corresponding user object.'
-      description: 'This endpoint handles user login attempts, sending an email notification for each attempt. It monitors login activity over a 24-hour period, locking the account if excessive failed attempts are detected. When a user successfully logs in, all existing sessions are invalidated, and a new bearer token is issued. If an incorrect password is entered, an error indicating "wrong password" is returned, the attempt is logged with a timestamp, and the failed attempt count is incremented. If the provided user does not exist, a "not found" error is returned. Despite account locking due to excessive failed attempts, users may attempt to log in again, with email notifications sent for each request.'
+      summary: 'Authenticates user credentials with the server and provides the corresponding user token.'
+      description: >-
+        Auth: Public
+        
+        
+        This endpoint handles user login attempts, sending an email notification for each attempt. It monitors login activity over a 24-hour period, denying attempts if the account has excessive failed attempts. When a user successfully logs in, all existing sessions are invalidated, and a new bearer token is issued. If an incorrect password is entered, an error indicating "wrong password" is returned, the attempt is logged with a timestamp, and the failed attempt count is incremented. If the provided user does not exist, a "not found" error is returned. Each attempt generates a notification email.
       requestBody:
         required: true
         content:
@@ -69,7 +73,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'Logs the user out. '
-      description: "This endpoint updates the 'last logged at' timestamp to record the user's logout. If multiple logout attempts are made, the request will fail. Additionally, the operation will fail if the user's login session has already expired."
+      description: >-
+        Auth: Bearer
+        
+        
+        This endpoint updates the 'last logged at' timestamp to record the user's logout. If multiple logout attempts are made, the request will fail. Additionally, the operation will fail if the user's login session has already expired.
       responses:
         '200':
           description: logged out succesfully!
@@ -84,7 +92,11 @@ paths:
       tags:
         - Authentication
       summary: 'Initiates the password recovery process. '
-      description: 'This endpoint verifies whether the user has exceeded the limit of recovery attempts within a 24-hour period and proceeds with the recovery process if allowed. Excessive attempts within the time frame will result in limitations. As a publicly accessible API, it is subject to rate limiting.'
+      description: >-
+        Auth: Public
+        
+        
+        This endpoint verifies whether the user has exceeded the limit of recovery attempts within a 24-hour period and proceeds with the recovery process if allowed. Excessive attempts within the time frame will result in limitations. As a publicly accessible API, it is subject to rate limiting.
       security:
         - public_no_auth: []
       requestBody:
@@ -110,7 +122,11 @@ paths:
       security:
         - public_no_auth: []
       summary: "Updates the user's password."
-      description: 'Verifies the validity and expiration status (24 hours) of the provided reset password token, checks if the new password meets the required parameters for minimum and maximum length, and if valid, hashes and updates the password. Returns a 404 error if the token is not found.'
+      description: >-
+        Auth: Public
+        
+        
+        Verifies the validity and expiration status (24 hours) of the provided reset password token, checks if the new password meets the required parameters for minimum and maximum length, and if valid, hashes and updates the password. Returns a 404 error if the token is not found.
       requestBody:
         required: true
         content:
@@ -135,7 +151,11 @@ paths:
       security:
         - public_no_auth: []
       summary: 'Registers a new user. '
-      description: 'Adds a new user to the database with a default role of "client." To promote the account to a "manager" role, a system administrator must perform an account role update.'
+      description: >
+        Auth: Public
+        
+        
+        Adds a new user to the database with a default role of "client." To promote the account to a "manager" role, a system administrator must perform an account role update.
       requestBody:
         required: true
         content:
@@ -163,7 +183,11 @@ paths:
       tags:
         - Products
       summary: 'Retrieves a paginated list of products and serves as the product search endpoint. '
-      description: 'The endpoint behavior varies based on permissions: permission managers can access all products, while permission clients are restricted to their own. By default, clients will not see disabled or out-of-stock products. Additional filtering, such as by disabled status, stock status, updated by, or creation date, must be handled client-side, or developers can be contacted to consider adding a dedicated dashboard endpoint for advanced filtering. Unauthenticated requests will fail if such functionality is attempted.'
+      description: >-
+        Auth: Public, Bearer
+        
+        
+        The endpoint behavior varies based on permissions: managers can access all products, while clients are restricted to only published or ones from their past orders. Unauthenticated requests will ignore auth-only parameters.
       parameters:
         - in: query
           name: page
@@ -245,7 +269,10 @@ paths:
       tags:
         - Products
       summary: creates a new product
-      description: Requires Write Permission (Manager Create Permit).
+      description: |
+        Auth: Bearer
+        
+        Requires Write Permission (Manager Create Permit).
       requestBody:
         required: true
         content:
@@ -274,6 +301,8 @@ paths:
         - bearer_user_auth: []
       summary: 'gets a specific product by id'
       description: 'some of the details like if the product has been like are included in the case of a client.'
+      summary: 'Gets a specific product by id'
+      description: |
       parameters:
         - in: path
           required: true
@@ -308,7 +337,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'Updates product data'
-      description: "This endpoint allows updating a product's data and toggling its disabled status. It requires Write Permission (Manager Update Permit) and only necessitates providing the product ID along with one additional field to update."
+      description: |
+        Auth: Bearer
+        
+        
+        This endpoint allows updating a product's data and toggling its disabled status. It requires Write Permission (Manager Update Permit) and only necessitates providing the product ID along with one additional field to update.
       parameters:
         - in: path
           name: id
@@ -343,7 +376,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'marks a product as deleted'
-      description: 'this endpoint updates the "deleted" field of a specified product to true instead of performing a cascading delete. By marking the product as deleted, it is excluded from queries, except where its presence is required, such as in historical orders. This approach ensures that products remain identifiable for cleanup tasks once associated orders are finalized.'
+      description: |
+        Auth: Bearer
+        
+        
+        This endpoint updates the "deleted" field of a specified product to true instead of performing a cascading delete. By marking the product as deleted, it is excluded from queries, except where its presence is required, such as in historical orders. This approach ensures that products remain identifiable for cleanup tasks once associated orders are finalized.
       parameters:
         - in: path
           name: id
@@ -368,7 +405,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'Lists orders with pagination and serves as the order search endpoint, primarily for managers.'
-      description: "This endpoint returns orders based on the user's permissions, which may limit the fields included in the response. Disabled or out-of-stock products will be omitted. Any additional filtering, such as by disabled status, out-of-stock status, user updates, or date ranges (e.g., created at), should be performed on the client side. If more advanced or custom filtering options are needed, please notify the development team to consider adding a dedicated dashboard endpoint for these specific queries."
+      description: |
+        Auth: Bearer
+        
+        
+        This endpoint returns orders based on the user's permissions, which may limit the fields included in the response. Disabled or out-of-stock products will be omitted. Any additional filtering, such as by disabled status, out-of-stock status, user updates, or date ranges (e.g., created at), should be performed on the client side. If more advanced or custom filtering options are needed, please notify the development team to consider adding a dedicated dashboard endpoint for these specific queries.
       parameters:
         - in: query
           name: page
@@ -438,6 +479,8 @@ paths:
       security:
         - bearer_user_auth: []
       summary: creates a new order
+      description: >
+        Auth: Bearer
       requestBody:
         required: true
         content:
@@ -462,6 +505,8 @@ paths:
   /orders/{id}:
     get:
       summary: Gets an specific id. Client can only get their own orders. Managers can get any.
+      description: >
+        Auth: Bearer
       parameters:
         - in: path
           name: id
@@ -499,7 +544,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'Step 1 of a Payment'
-      description: 'This endpoint is used to initiate a payment by associating it with an order. It creates a Payment Intent object and logs it in the stripe_event_request. The payment_intent_details, combined with server-configured parameters, generates a payment object. Additionally, the order ID is included in the metadata. The payment status is set to "started". If the order ID does not exist, a 404 error is returned.'
+      description: >
+        Auth: Bearer
+        
+        
+        This endpoint is used to initiate a payment. It creates a Payment Intent object and saves it in the stripe_payment_intent. Additionally, the order ID is included in the metadata. The payment status is set to "requires_payment_method". If the order ID does not exist, a 404 error is returned.
       requestBody:
         content:
           application/json:
@@ -525,7 +574,9 @@ paths:
     get:
       tags:
         - Payments
-      summary: Worker endpoint, gets a list of payments to process.
+      summary: Worker endpoint, gets a list of payments to process from incoming_payment_webhooks.
+      description: >
+        Auth: Bearer
       security:
         - bearer_system_auth: []
       responses:
@@ -540,7 +591,11 @@ paths:
       security:
         - bearer_system_auth: []
       summary: 'Step 4 worker processed the webhook event and wants to push updates.'
-      description: "This API updates the order's payment status to reflect the outcome, setting the payment to success, fail, or cancelled. If the API determines that no further actions are needed for the payment, it will mark the payment as closed (true). For example, if the payment has failed, a new payment cycle should be initiated. However, this 'closed' status is not final for all transactions, as further actions such as refunds may still be required. Only the payment status and closed field are expected to be updated through this endpoint, as it is intended for use by the worker. Any other changes should be made using the PUT method."
+      description: >
+        Auth: Bearer
+        
+        
+        This API updates the order's payment status to reflect the outcome. If the API determines that no further actions are possible for the intent, it will mark the payment as closed (true). Expected scenarios that close could be success or cancelled as stripe blocks further actions on cancelled intents. Meaning, this 'closed' status is not final for all stages. Only the payment status and closed field are expected to be updated through this endpoint, as it is intended for use by the worker after running business logic. Any other changes should be made using the PUT method.
       parameters:
         - in: path
           name: id
@@ -566,7 +621,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'Step 2 of a Payment - adds the payment card details to our intent'
-      description: 'This step combines the payment card details with the payment intent. It overrides the stripe_event_request, ensuring that the updates are synchronized with Stripe as we modify them. This process also handles any other necessary fields that need to be updated. The status will either be "Awaiting Payment" or "Processing Payment" during this stage. If already confirmed, changes are disallowed as per stripe docs "During that time, you should disable your form from being resubmitted and show a waiting indicator like a spinner.'
+      description: >
+        Auth: Bearer
+        
+        
+        This step adds the payment card details to the payment intent. It updates the stripe_payment_intent, ensuring that the updates are synchronized with Stripe as we modify them. This process also handles any other necessary fields that need to be updated. The status could become "requires_confirmation", "requires_action" or "processing" during this stage. If already confirmed, changes are disallowed as per stripe docs "During that time, you should disable your form from being resubmitted and show a waiting indicator like a spinner. The expected way we could get changes to the payment intent is by webhooks updating it via the workers.
       parameters:
         - in: path
           name: id
@@ -609,7 +668,11 @@ paths:
       security:
         - bearer_system_auth: []
       summary: "Step 3: 'We consume updates regarding our payment intent from Stripe"
-      description: "In this step, we receive updates from Stripe regarding the payment intent. According to Stripe's documentation, no business logic should be executed at this stage; the only task is to record the incoming data. A worker will later process the response. This hook's primary function is to verify that the data transmission is correct, such as ensuring the JSON is valid. For example, the status might be 'Processing Payment.' The request we expect follows the specifications outlined in the Stripe API events documentation (https://docs.stripe.com/api/events/object), filtered by the event types we have configured in the Stripe webhook settings. The data is recorded in the stripe_webhook field. A 404 error could occur in rare cases where the order ID is not found in our systems, which will result in a failure."
+      description: >
+        Auth: Bearer
+        
+        
+        In this step, we receive updates from Stripe regarding the payment intent. According to Stripe's documentation, no business logic should be executed at this stage; the only task is to record the incoming data. A worker will later process the response. This hook's primary function is to verify that the data transmission is correct, such as ensuring the JSON is valid. For example, the status might be 'Processing Payment.' The request we expect follows the specifications outlined in the Stripe API events documentation (https://docs.stripe.com/api/events/object). The data is recorded in the incoming_payment_webhooks table. A 404 error could occur in rare cases where the order ID is not found in our systems, which will result in a failure, we need to figure out if stripe can handle it or we should accept it and mark it as status error right away.
       responses:
         '200':
           description: the event was recieved correctly.
@@ -626,7 +689,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'Creates a new file'
-      description: 'This endpoint allows users to upload a file after it is encoded in base64. It requires Write Permission (Manager Upload Permit). The file is first uploaded to a CDN, and once the upload is successful and a URL is returned, the system creates a file entry with associated metadata such as the file size and timestamp.'
+      description: >
+        Auth: Bearer
+        
+        
+        'This endpoint allows users to upload a file after it is encoded in base64. It requires Write Permission (Manager Upload Permit). The file is first uploaded to a CDN, and once the upload is successful and a URL is returned, the system creates a file entry with associated metadata such as the file size and timestamp.'
       requestBody:
         required: true
         content:
@@ -650,7 +717,11 @@ paths:
       tags:
         - System
       summary: 'Deletes a file'
-      description: 'This endpoint deletes a file by first receiving the file ID. It then removes the file from the CDN and deletes the corresponding record. The operation requires the "Manager Delete Permit" permission.'
+      description: >
+        Auth: Bearer
+        
+        
+        This endpoint deletes a file by first receiving the file ID. It then removes the file from the CDN and deletes the corresponding record. The operation requires the "Manager Delete Permit" permission. Additionally there is no get because expectation is the files will be accessed via related tables.
       parameters:
         - in: path
           name: id
@@ -677,7 +748,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'Creates a new entry for an item in the cart'
-      description: 'This endpoint adds a new entry to the cart table by associating a product ID with a user ID and specifying the quantity of the item in the cart. If the product already exists in the cart, subsequent requests will update the quantity or overwrite the existing entry with the same values. Repeated requests are allowed and will not create duplicate entries, only modify the existing one.'
+      description: >
+        Auth: Bearer
+        
+        
+        'This endpoint adds a new entry to the cart table by associating a product ID with a user ID and specifying the quantity of the item in the cart. If the product already exists in the cart, subsequent requests will update the quantity or overwrite the existing entry with the same values. Repeated requests are allowed and will not create duplicate entries, only modify the existing one.'
       requestBody:
         required: true
         content:
@@ -708,7 +783,11 @@ paths:
           schema:
             type: integer
       summary: 'Retrieves all items in a cart'
-      description: 'This endpoint filters the cart rows based on the user-provided data or system criteria, such as marketing emails related to finishing shopping or alerts for discounts or low stock. It returns a 404 error if no items are found or if the user ID cannot be found.'
+      description: >
+        Auth: Bearer
+        
+        
+        Manager and System can get other users cart. System for marketing, and managers for reports.
       responses:
         '200':
           description: 'cart filtered by user, in the case of system, the user can be another one'
@@ -727,7 +806,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'A user submits a like for a product.'
-      description: 'This endpoint allows a user to like a product. If the product has already been liked by the user, the request will not fail. The API automatically associates the user ID with the like request, ensuring the correct user is recorded.'
+      description: >
+        Auth: Bearer
+        
+        
+        This endpoint allows a user to like a product. If the product has already been liked by the user, the request will not fail. The API automatically associates the user ID with the like request, ensuring the correct user is recorded.
       requestBody:
         required: true
         content:
@@ -750,7 +833,11 @@ paths:
       security:
         - bearer_user_auth: []
       summary: 'A user wants to remove a liked product.'
-      description: '404 also happens if the delete is called again for the same id.'
+      description: >
+        Auth: Bearer
+        
+        
+        404 happens if the delete is called again for the same ids. For reduced complexity the like is removed using the product variation id combo. This saves us like id handling.
       parameters:
         - in: path
           name: id
@@ -775,7 +862,11 @@ paths:
       security:
         - bearer_system_auth: []
       summary: 'This endpoint is called periodically by a cron job to execute marketing logic.'
-      description: 'This endpoint is executed on a scheduled basis to evaluate marketing conditions. One of the key conditions is to send an email notification to the last user who liked a product but has not purchased it when the product’s stock reaches 3. The endpoint also tracks failed executions, ensuring no action is taken if failures exceed a specified threshold. In such cases, a system administrator is notified if possible.'
+      description: >
+        Auth: Bearer
+        
+        
+        This endpoint is executed on a scheduled basis to evaluate marketing conditions. One of the key conditions is to send an email notification to the last user who liked a product but has not purchased it when the product’s stock reaches 3. The endpoint also tracks failed executions, ensuring no action is taken if failures exceed a specified threshold. In such cases, a system administrator is notified if possible.
       responses:
         '200':
           description: successfully ran the cron job
@@ -790,7 +881,11 @@ paths:
       security:
         - bearer_system_auth: []
       summary: 'Adds an email to the queue to be sent by worker'
-      description: 'The 404 is for when attachments are not found'
+      description: >
+        Auth: Bearer
+        
+        
+        The 404 is for when attachments are not found
       requestBody:
         content:
           application/json:
@@ -820,7 +915,11 @@ paths:
       security:
         - bearer_system_auth: []
       summary: 'Updates the status of an email job'
-      description: 'If specified in request it returns the email object as to lock and retrieve the data in one go. This is a worker endpoint.'
+      description: >
+        Auth: Bearer
+        
+        
+        If specified in request it returns the email object as to lock and retrieve the data in one go. This is a worker endpoint.
       parameters:
         - in: path
           name: id
