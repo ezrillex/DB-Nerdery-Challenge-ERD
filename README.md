@@ -20,7 +20,6 @@ REST swagger documentation available here: [https://ezrillex.github.io/DB-Nerder
 - Provided by **searchProducts** query. This accepts pagination parameters:
   - first: Int!  
   - offset: Int!  
-  - pageSize: Int
 3. Search products by category
 - Provided by **searchProducts** query. This accepts search parameters: -
   - categoryFilter: [ID!]
