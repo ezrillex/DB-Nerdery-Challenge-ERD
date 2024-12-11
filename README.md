@@ -5,7 +5,7 @@ Available in dbdiagram.io [https://dbdiagram.io/d/nerdery_challenge_3-674890aae9
 
 REST swagger documentation available here: [https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/](https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/)
 
-![Proposed GraphQL](/graphql_visualized.png)
+![Proposed GraphQL](https://raw.githubusercontent.com/ezrillex/DB-Nerdery-Challenge-ERD/refs/heads/main/graphql_visualized.png)
 [Open in new tab](https://raw.githubusercontent.com/ezrillex/DB-Nerdery-Challenge-ERD/refs/heads/main/graphql_visualized.png)
 # GraphQL --------------------------------
 ## Mandatory Features
