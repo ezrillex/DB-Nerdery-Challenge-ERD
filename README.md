@@ -1,11 +1,12 @@
 ## Nerdery DB Challange \#3 \- ERD.
-![Proposed Diagram](/ERD-Diagram.png)  
-(Outdated image)
+![Proposed Diagram](/ERD-Diagram.png)
 
 Available in dbdiagram.io [https://dbdiagram.io/d/nerdery_challenge_3-674890aae9daa85aca0aa678](https://dbdiagram.io/d/nerdery_challenge_3-674890aae9daa85aca0aa678)
 
-Endpoint swagger documentation available here: [https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/](https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/)
+REST swagger documentation available here: [https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/](https://ezrillex.github.io/DB-Nerdery-Challenge-ERD/)
 
+![Proposed GraphQL](/graphql_visualized.png)
+[Open in new tab](https://raw.githubusercontent.com/ezrillex/DB-Nerdery-Challenge-ERD/refs/heads/main/graphql_visualized.png)
 # GraphQL --------------------------------
 ## Mandatory Features
 

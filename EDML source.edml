@@ -19,13 +19,6 @@ Table permissions {
   applies_to_column varchar [null, default: 'if null then access to whole row?']
 }
 
-Enum pay_status{
-  pending
-  paid
-  cancelled
-  refunded
-  partially_refunded
-}
 
 Enum order_status {
   pending_fulfillment
@@ -105,6 +98,11 @@ Table product_variations {
   published boolean [default: true]
   deleted boolean [default: false, not null]
 }
+/*
+db has rows like
+group \ title \ price \ stock
+color
+*/
 
 Table files {
   id uuid [primary key]
