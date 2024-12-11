@@ -1,12 +1,88 @@
-# everything extends these but I am checking some other docs that define for example UserQuery, so what is better, one for each or a shared one?
+# Entrypoint Query / Mutations
 type Query {
-    _about: String!
+    # used by system / workers
+    systemQuery: SystemQuery
+    authorizedQuery(
+        role: ID!
+    ): AuthorizedQuery
+    publicQuery: PublicQuery
 }
+type SystemQuery {
+    # Payment STEP 4a - for worker, webhook only ingested the raw data from stripe.
+    getPaymentsToProcess : [ID!]
+    getLastLikesLowStock : [Likes!]
+    getEmailJobs(input: GetEmailJobsInput! ): GetEmailJobsPayload!
+}
+type AuthorizedQuery {
+    getLikes(input: GetLikesInput!) : LikesPayload!
+    getCartInfo(client: ID!): CartInfoPayload!
+    listAllOrders(first: Int!, offset: Int!) : allOrderDetailsPayload!
+    orderDetails(order: ID!) : orderDetailsPayload!
+    getProducts(input: GetProductsInput!) : GetProductsPayload!
+    getProduct(input: ID!) : GetProductPayload!
+    userHasPermission(input: UserHasPermissionInput! ) : UserHasPermissionPayload!
+
+}
+type PublicQuery {
+    getProducts(input: GetProductsInput!) : GetProductsPayload!
+    getProduct(input: ID!) : GetProductPayload!
+    # getting files is uncommon. Expectation is to include file links in related queries.
+    # if not found then is null, no error is raised.
+    getFile(input: ID!): Files
+    getFiles(input: [ID!]!): [Files]!
+}
+
 type Mutation {
-    _about: String!
+    # used by system / workers
+    systemMutation: SystemMutation
+    authorizedMutation(
+        role: ID!
+    ): AuthorizedMutation
+    publicMutation: PublicMutation
 }
+type SystemMutation {
+    createEmailJob(input: CreateEmailJobInput!): BaseValidatedResponsePayload!
+    updateEmailJob(input: UpdateEmailJobInput!):  UpdateEmailJobPayload!
+    lowStockPromotionsCronJob : BaseResponsePayload!
+    # Payment STEP 3 - comes from an API Gateway or a REST endpoint that passes it to graphql as GQL is not supported by Stripe.
+    stripePaymentWebhook(stripeWebhookJSON: String! ) : BaseResponsePayload! # The basic one as to fail to one http code only.
+    # Payment STEP 4b - Locks the current payment to process and returns the record.
+    lockPayment(id: ID!) : LockPaymentPayload!
+    # Payment STEP 4c - Worker updates the necessary fields, regarding the payment itself it will just update status.
+    processPayment(input: ProcessPaymentInput!) : BaseResponsePayload!
+}
+type AuthorizedMutation {
+    likeProduct(input: LikeProductInput!) : LikeOperationPayload!
+    removeLike(input: RemoveLikeInput ) : LikeOperationPayload!
+    # only managers in edge cases will use this, because emails are mostly send from other endpoints so most will be system.
+    createEmailJob(input: CreateEmailJobInput!): BaseValidatedResponsePayload!
+    addToCart(client: ID!, product: ID!, quantity: Int!): BaseResponsePayload!
+    removeFromCart(client: ID! product: ID!) : BaseResponsePayload!
+    modifyQuantityCart(client: ID!, product: ID!, newQuantity: Int!): BaseResponsePayload!
+    createOrder(input: CreateOrderInput) : BaseValidatedResponsePayload!
+    createProduct(input: CreateProductInput! ) : BaseValidatedResponsePayload!
+    deleteProduct(input: ID!) : BaseResponsePayload!
+    updateProduct(input: UpdateProductInput! ) : BaseValidatedResponsePayload!
+    # Payment STEP 1
+    createPayment(input: CreatePaymentInput! ) : BaseValidatedResponsePayload!
+    updatePaymentDetails(input: UpdatePaymentDetailsInput! ) : BaseValidatedResponsePayload!
+
+    createFile(input: CreateFileInput! ): BaseResponsePayload!
+    deleteFile(input: ID!): BaseResponsePayload!
+    logoutUser(token: String!): BaseValidatedResponsePayload!
+}
+type PublicMutation {
+    createUser(input: CreateUserInput!) : BaseValidatedResponsePayload!
+    loginUser(input: UserLoginInput): LoginUserPayload!
+    forgotPassword(email: String!) : BaseValidatedResponsePayload!
+    resetPassword(input: UserResetPassword!) : BaseValidatedResponsePayload!
+}
+
+
+# REUSABLE / INHERITABLE components
+#region
 # resolves to a single type of error or condition
-interface BaseResponsePayload {
+interface IBaseResponsePayload {
     code: Int!
     description: String!
 }
@@ -16,7 +92,7 @@ type BaseResponsePayload {
     description: String!
 }
 # can return multiple kinds of errors at once
-interface BaseValidatedResponsePayload {
+interface IBaseValidatedResponsePayload {
     validationErrors: [String!]
     conditionErrors: [String!]
     code: Int!
@@ -37,6 +113,7 @@ interface BasePaginationPayload {
     next: Boolean!
     previous: Boolean!
 }
+#endregion
 
 type Roles {
     id: ID!
@@ -85,7 +162,7 @@ input UserResetPassword {
     repeatNewPassword: String!
 }
 
-type LoginUserPayload implements BaseValidatedResponsePayload {
+type LoginUserPayload implements IBaseValidatedResponsePayload {
     code: Int!
     validationErrors: [String!]
     description: String
@@ -93,13 +170,8 @@ type LoginUserPayload implements BaseValidatedResponsePayload {
     token: String
 }
 
-extend type Mutation {
-    createUser(input: CreateUserInput!) : BaseValidatedResponsePayload!
-    loginUser(input: UserLoginInput): LoginUserPayload!
-    logoutUser(token: String!): BaseValidatedResponsePayload!
-    forgotPassword(email: String!) : BaseValidatedResponsePayload!
-    resetPassword(input: UserResetPassword!) : BaseValidatedResponsePayload!
-}
+
+
 #endregion
 
 # Permission endpoints
@@ -124,15 +196,13 @@ input UserHasPermissionInput {
     permission: ID!
 }
 
-type UserHarPermissionPayload {
+type UserHasPermissionPayload {
     isAllowed: Boolean!
     errors: String
     errorCode: Int
 }
 
-extend type Query {
-    userHasPermission(input: UserHasPermissionInput! ) : UserHarPermissionPayload!
-}
+
 #endregion
 
 type Categories {
@@ -162,17 +232,10 @@ input CreateFileInput {
     base64: String!
 }
 
-# GET A FILE, uncommon. Expectation is to be included in related queries.
-# if not found then is null, no error is raised.
-extend type Query {
-    getFile(input: ID!): Files
-    getFiles(input: [ID!]!): [Files]!
-}
 
-extend type Mutation {
-    createFile(input: CreateFileInput! ): BaseResponsePayload!
-    deleteFile(input: ID!): BaseResponsePayload!
-}
+
+
+
 #endregion
 
 # PAYMENTS ENDPOINTS
@@ -208,31 +271,16 @@ input ProcessPaymentInput{
     status: ID
 }
 
-type LockPaymentPayload implements BaseResponsePayload {
+type LockPaymentPayload implements IBaseResponsePayload {
     description: String!
     code: Int!
     payment: Payments
 }
 
-extend type Query {
-    # STEP 4 A - for worker, webhook only ingested the raw data from stripe.
-    getPaymentsToProcess : [ID!]
-}
 
-extend type Mutation {
-    # STEP 1
-    createPayment(input: CreatePaymentInput! ) : BaseValidatedResponsePayload!
 
-    updatePaymentDetails(input: UpdatePaymentDetailsInput! ) : BaseValidatedResponsePayload!
 
-    # STEP 3 - comes from an API Gateway or a REST endpoint that passes it to graphql as GQL is not supported by Stripe.
-    stripePaymentWebhook(stripeWebhookJSON: String! ) : BaseResponsePayload! # The basic one as to fail to one http code only.
 
-    # STEP 4 B - Locks the current payment to process and returns the record.
-    lockPayment(id: ID!) : LockPaymentPayload!
-    # STEP 4 C - Worker updates the necessary fields, regarding the payment itself it will just update status.
-    processPayment(input: ProcessPaymentInput!) : BaseResponsePayload!
-}
 #endregion
 
 # PRODUCTS ENDPOINTS
@@ -264,7 +312,7 @@ input GetProductsInput {
     sort: String
 }
 
-type GetProductsPayload implements BaseValidatedResponsePayload, BasePaginationPayload {
+type GetProductsPayload implements IBaseValidatedResponsePayload & BasePaginationPayload {
     products: [Products!]
     count: Int!
     totalCount: Int!
@@ -287,7 +335,7 @@ input CreateProductInput {
     images: [ID!] # list not required as item could not have an image (i.e. unpublished in progress)
 }
 
-type GetProductPayload implements BaseResponsePayload {
+type GetProductPayload implements IBaseResponsePayload {
     code: Int!
     description: String!
     product: Products
@@ -303,15 +351,10 @@ input UpdateProductInput {
     images: [ID!]
 }
 
-extend type Query {
-    getProducts(input: GetProductsInput!) : GetProductsPayload!
-    getProduct(input: ID!) : GetProductPayload!
-}
-extend type Mutation {
-    createProduct(input: CreateProductInput! ) : BaseValidatedResponsePayload!
-    deleteProduct(input: ID!) : BaseResponsePayload!
-    updateProduct(input: UpdateProductInput! ) : BaseValidatedResponsePayload!
-}
+
+
+
+
 #endregion
 
 # Orders endpoints
@@ -333,7 +376,7 @@ type OrderDetails {
     pricePurchasedAt: Float!
 }
 
-type ListAllOrderdsPayload implements BaseResponsePayload{
+type ListAllOrderdsPayload implements IBaseResponsePayload{
     orders: [Orders!]
     description: String!
     code: Int!
@@ -344,25 +387,20 @@ input CreateOrderInput {
     otherInfo: String! # shipping maybe? to be defined.
 }
 
-type allOrderDetailsPayload implements BaseResponsePayload {
+type allOrderDetailsPayload implements IBaseResponsePayload {
     description: String!
     code: Int!
     orders: [Orders!]
 }
 
-type orderDetailsPayload implements BaseResponsePayload{
+type orderDetailsPayload implements IBaseResponsePayload{
     order: Orders!
     code: Int!
     description: String!
 }
 
-extend type Query {
-    listAllOrders(first: Int!, offset: Int!) : allOrderDetailsPayload!
-    orderDetails(order: ID!) : orderDetailsPayload!
-}
-extend type Mutation {
-    createOrder(input: CreateOrderInput) : BaseValidatedResponsePayload!
-}
+
+
 #endregion
 
 # CART ENDPOINTS
@@ -374,28 +412,18 @@ type Carts {
     productQuantity: Int!
     createdAt: String!
 }
-type CartInfoPayload implements BaseResponsePayload{
+type CartInfoPayload implements IBaseResponsePayload{
     cart: [Carts!]
     code: Int!
     description: String!
 }
 
-extend type Query {
-    getCartInfo(client: ID!): CartInfoPayload!
-}
 
-# more readable In my opinion, when to use the type Input separation? or is it hard rule to use it.
-extend type Mutation {
-    addToCart(client: ID!, product: ID!, quantity: Int!): BaseResponsePayload!
-    removeFromCart(client: ID! product: ID!) : BaseResponsePayload!
-    modifyQuantityCart(client: ID!, product: ID!, newQuantity: Int!): BaseResponsePayload!
-}
+
+
 #endregion
 
-# Marketing endpoint
-extend type Mutation {
-    lowStockPromotionsCronJob : BaseResponsePayload!
-}
+
 
 # Mailer Service Endpoints
 #region
@@ -448,14 +476,10 @@ type UpdateEmailJobPayload{
     jobData: EmailQueue!
 }
 
-extend type Query{
-    getEmailJobs(input: GetEmailJobsInput! ): GetEmailJobsPayload! # worker endpoint
-}
 
-extend type Mutation{
-    createEmailJob(input: CreateEmailJobInput!): BaseValidatedResponsePayload!
-    updateEmailJob(input: UpdateEmailJobInput!):  UpdateEmailJobPayload!
-}
+
+
+
 #endregion
 
 # Likes endpoints
@@ -474,9 +498,8 @@ type LikesPayload {
     errors: String
     likes: Likes
 }
-extend type Query {
-    getLikes(input: GetLikesInput!) : LikesPayload
-}
+
+
 # LIKE A PRODUCT and REMOVE A LIKED PRODUCT
 input LikeProductInput {
     productLiked: ID!
@@ -490,8 +513,5 @@ type LikeOperationPayload {
     likeResultCode: Int!
     likeResult : String
 }
-extend type Mutation {
-    likeProduct(input: LikeProductInput!) : LikeOperationPayload!
-    removeLike(input: RemoveLikeInput ) : LikeOperationPayload!
-}
+
 #endregion
