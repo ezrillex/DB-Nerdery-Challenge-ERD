@@ -2,30 +2,27 @@
 type Query {
     # used by system / workers
     systemQuery: SystemQuery
-    authorizedQuery(
-        role: ID!
-    ): AuthorizedQuery
+    authorizedQuery(role: ID!): AuthorizedQuery
     publicQuery: PublicQuery
 }
 type SystemQuery {
     # Payment STEP 4a - for worker, webhook only ingested the raw data from stripe.
-    getPaymentsToProcess : [ID!]
-    getLastLikesLowStock : [Likes!]
-    getEmailJobs(input: GetEmailJobsInput! ): GetEmailJobsPayload!
+    getPaymentsToProcess: [ID!]
+    getLastLikesLowStock: [Likes!]
+    getEmailJobs(input: GetEmailJobsInput!): GetEmailJobsPayload!
 }
 type AuthorizedQuery {
-    getLikes(input: GetLikesInput!) : LikesPayload!
+    getLikes(input: GetLikesInput!): LikesPayload!
     getCartInfo(client: ID!): CartInfoPayload!
-    listAllOrders(first: Int!, offset: Int!) : allOrderDetailsPayload!
-    orderDetails(order: ID!) : orderDetailsPayload!
-    getProducts(input: GetProductsInput!) : GetProductsPayload!
-    getProduct(input: ID!) : GetProductPayload!
-    userHasPermission(input: UserHasPermissionInput! ) : UserHasPermissionPayload!
-
+    listAllOrders(first: Int!, offset: Int!): allOrderDetailsPayload!
+    orderDetails(order: ID!): orderDetailsPayload!
+    getAuthorizedProducts(input: GetProductsInput!): GetProductsPayload!
+    getAuthorizedProduct(input: ID!): GetProductPayload!
+    userHasPermission(input: UserHasPermissionInput!): UserHasPermissionPayload!
 }
 type PublicQuery {
-    getProducts(input: GetProductsInput!) : GetProductsPayload!
-    getProduct(input: ID!) : GetProductPayload!
+    getPublicProducts(input: GetProductsInput!): GetProductsPayload!
+    getPublicProduct(input: ID!): GetProductPayload!
     # getting files is uncommon. Expectation is to include file links in related queries.
     # if not found then is null, no error is raised.
     getFile(input: ID!): Files
@@ -35,83 +32,157 @@ type PublicQuery {
 type Mutation {
     # used by system / workers
     systemMutation: SystemMutation
-    authorizedMutation(
-        role: ID!
-    ): AuthorizedMutation
+    authorizedMutation(role: ID!): AuthorizedMutation
     publicMutation: PublicMutation
 }
 type SystemMutation {
-    createEmailJob(input: CreateEmailJobInput!): BaseValidatedResponsePayload!
-    updateEmailJob(input: UpdateEmailJobInput!):  UpdateEmailJobPayload!
-    lowStockPromotionsCronJob : BaseResponsePayload!
+    createSystemEmailJob(input: CreateEmailJobInput!): ValidatedResponsePayload!
+    updateEmailJob(input: UpdateEmailJobInput!): UpdateEmailJobPayload!
+    lowStockPromotionsCronJob: BaseResponsePayload!
     # Payment STEP 3 - comes from an API Gateway or a REST endpoint that passes it to graphql as GQL is not supported by Stripe.
-    stripePaymentWebhook(stripeWebhookJSON: String! ) : BaseResponsePayload! # The basic one as to fail to one http code only.
+    stripePaymentWebhook(stripeWebhookJSON: String!): BaseResponsePayload! # The basic one as to fail to one http code only.
     # Payment STEP 4b - Locks the current payment to process and returns the record.
-    lockPayment(id: ID!) : LockPaymentPayload!
+    lockPayment(id: ID!): LockPaymentPayload!
     # Payment STEP 4c - Worker updates the necessary fields, regarding the payment itself it will just update status.
-    processPayment(input: ProcessPaymentInput!) : BaseResponsePayload!
+    processPayment(input: ProcessPaymentInput!): BaseResponsePayload!
 }
 type AuthorizedMutation {
-    likeProduct(input: LikeProductInput!) : LikeOperationPayload!
-    removeLike(input: RemoveLikeInput ) : LikeOperationPayload!
+    likeProduct(input: LikeProductInput!): BaseResponsePayload!
+    removeLike(input: RemoveLikeInput): BaseResponsePayload!
     # only managers in edge cases will use this, because emails are mostly send from other endpoints so most will be system.
-    createEmailJob(input: CreateEmailJobInput!): BaseValidatedResponsePayload!
-    addToCart(client: ID!, product: ID!, quantity: Int!): BaseResponsePayload!
-    removeFromCart(client: ID! product: ID!) : BaseResponsePayload!
-    modifyQuantityCart(client: ID!, product: ID!, newQuantity: Int!): BaseResponsePayload!
-    createOrder(input: CreateOrderInput) : BaseValidatedResponsePayload!
-    createProduct(input: CreateProductInput! ) : BaseValidatedResponsePayload!
-    deleteProduct(input: ID!) : BaseResponsePayload!
-    updateProduct(input: UpdateProductInput! ) : BaseValidatedResponsePayload!
+    createAuthorizedEmailJob(
+        input: CreateEmailJobInput!
+    ): ValidatedResponsePayload!
+    addToCart(input: AddToCartInput! ): BaseResponsePayload!
+    removeFromCart(input: RemoveFromCartInput! ): BaseResponsePayload!
+    modifyQuantityCart(input: ModifyCartQuantity!): BaseResponsePayload!
+    createOrder(input: CreateOrderInput): ValidatedResponsePayload!
+    createProduct(input: CreateProductInput!): ValidatedResponsePayload!
+    deleteProduct(input: ID!): BaseResponsePayload!
+    updateProduct(input: UpdateProductInput!): ValidatedResponsePayload!
     # Payment STEP 1
-    createPayment(input: CreatePaymentInput! ) : BaseValidatedResponsePayload!
-    updatePaymentDetails(input: UpdatePaymentDetailsInput! ) : BaseValidatedResponsePayload!
+    createPayment(input: CreatePaymentInput!): ValidatedResponsePayload!
+    updatePaymentDetails(
+        input: UpdatePaymentDetailsInput!
+    ): ValidatedResponsePayload!
 
-    createFile(input: CreateFileInput! ): BaseResponsePayload!
+    createFile(input: CreateFileInput!): BaseResponsePayload!
     deleteFile(input: ID!): BaseResponsePayload!
-    logoutUser(token: String!): BaseValidatedResponsePayload!
+    logoutUser(token: String!): ValidatedResponsePayload!
 }
 type PublicMutation {
-    createUser(input: CreateUserInput!) : BaseValidatedResponsePayload!
+    createUser(input: CreateUserInput!): ValidatedResponsePayload!
     loginUser(input: UserLoginInput): LoginUserPayload!
-    forgotPassword(email: String!) : BaseValidatedResponsePayload!
-    resetPassword(input: UserResetPassword!) : BaseValidatedResponsePayload!
+    forgotPassword(email: String!): ValidatedResponsePayload!
+    resetPassword(input: UserResetPassword!): ValidatedResponsePayload!
 }
 
-
+# CUSTOM Scalars
+scalar Timestamp # ISO formatted time string
+scalar Email
+scalar JSON
+scalar Token # string with a fixed length of 64
+scalar Hash # md5 32 char long string that has been hashed and salted
 # REUSABLE / INHERITABLE components
 #region
 # resolves to a single type of error or condition
 interface IBaseResponsePayload {
-    code: Int!
+    code: ResponseCodes!
     description: String!
 }
 # resolves to a single type of error or condition
 type BaseResponsePayload {
-    code: Int!
+    code: ResponseCodes!
     description: String!
 }
 # can return multiple kinds of errors at once
 interface IBaseValidatedResponsePayload {
     validationErrors: [String!]
     conditionErrors: [String!]
-    code: Int!
+    code: ResponseCodes!
     description: String
 }
 # can return multiple kinds of errors at once
-type BaseValidatedResponsePayload {
+type ValidatedResponsePayload {
     validationErrors: [String!]
     conditionErrors: [String!]
-    code: Int!
+    code: ResponseCodes!
     description: String
 }
-interface BasePaginationPayload {
+interface PaginationPayload {
     count: Int!
     totalCount: Int!
     currentPage: Int!
     totalPages: Int!
     next: Boolean!
     previous: Boolean!
+}
+#endregion
+
+# ENUMS
+#region
+enum OrderStatus {
+    pending_fulfillment
+    fulfillment_in_progress
+    shipped
+    delivered
+    delivery_cancelled
+    returned
+}
+
+enum QueueStatus {
+    pending
+    in_progress
+    success
+    failed
+}
+
+enum PaymentStatus {
+    requires_payment_method
+    requires_confirmation
+    requires_action
+    processing
+    succeded
+    cancelled
+}
+
+enum WebhookStatus {
+    pending
+    batched_locked
+    processing
+    done
+    error
+}
+
+enum ResponseCodes {
+    ok
+    validation_error
+    condition_error
+    authentication_error
+    permission_error
+    not_found_error
+    server_error
+    many_error
+}
+
+enum TableEntities {
+    Roles
+    Users
+    Permits
+    Permissions
+    Categories
+    Files
+    PaymentIntents
+    IncomingPaymentWebhooks
+    PaymentIntentsAudit
+    Products
+    ProductVariations
+    Orders
+    OrderAudit
+    OrderDetails
+    Carts
+    EmailQueue
+    Likes
 }
 #endregion
 
@@ -122,72 +193,70 @@ type Roles {
 
 # USERS/Auth ENDPOINTS
 #region
-type Users{
+type Users {
     firstName: String!
     lastName: String!
     id: ID!
-    email: String!
-    sessionToken: String # hashed
+    email: Email!
+    sessionToken: Token
     role: Roles!
-    createdAt: String!
-    lastLoginAt: String
-    lastSignoutAt: String
-    passwordHash: String!
-    passwordLastUpdated: String!
+    createdAt: Timestamp!
+    lastLoginAt: Timestamp
+    lastSignoutAt: Timestamp
+    password: Hash!
+    passwordLastUpdated: Timestamp!
     failedLoginAttempts: Int!
-    failedLoginAttemptsTimestamps: [String!] # the list is not required as it can be empty
-    passwordResetToken: String # hashed
+    failedLoginAttemptsTimestamps: [Timestamp!] # the list is not required as it can be empty
+    passwordResetToken: Token
     passwordResetRequestsCount: Int!
-    passwordResetRequestsTimestamps: [String!]
+    passwordResetRequestsTimestamps: [Timestamp!]
 }
 # POST CREATE USER
 input CreateUserInput {
     firstName: String!
     lastName: String!
-    email: String!
-    password: String!
-    repeatPassword: String!
+    email: Email!
+    password: Hash!
+    repeatPassword: Hash!
 }
 
 # POST LOGIN
 input UserLoginInput {
-    email: String!
-    password: String!
+    email: Email!
+    password: Hash!
 }
 
 # POST RESET
 input UserResetPassword {
-    resetToken: String!
-    newPassword: String!
-    repeatNewPassword: String!
+    resetToken: Token!
+    newPassword: Hash!
+    repeatNewPassword: Hash!
 }
 
 type LoginUserPayload implements IBaseValidatedResponsePayload {
-    code: Int!
+    code: ResponseCodes!
     validationErrors: [String!]
     description: String
     conditionErrors: [String!]
-    token: String
+    token: Token
 }
-
-
-
 #endregion
 
 # Permission endpoints
 #region
+
+# presence of permit here means the user IS GRANTED that permission
 type Permits {
     id: ID!
     role: Roles!
     permit: Permissions!
-    isAllowed: Boolean!
 }
 
 type Permissions {
     id: ID!
     name: String!
-    appliesToTable: String!
-    appliesToField: String
+    appliesToTable: TableEntities!
+    appliesToField: String # field in table
 }
 
 #
@@ -196,12 +265,11 @@ input UserHasPermissionInput {
     permission: ID!
 }
 
-type UserHasPermissionPayload {
+type UserHasPermissionPayload implements IBaseResponsePayload {
     isAllowed: Boolean!
-    errors: String
-    errorCode: Int
+    description: String!
+    code: ResponseCodes!
 }
-
 
 #endregion
 
@@ -210,21 +278,14 @@ type Categories {
     name: String!
 }
 
-type Statuses {
-    id: ID!
-    name: String!
-    forTable: String!
-}
-
-
 # Files endpoints
 #region
 type Files {
-    id: Int!
+    id: ID!
     name: String!
     size: Int!
     url: String!
-    createdAt: String!
+    createdAt: Timestamp!
 }
 # UPLOAD A FILE
 input CreateFileInput {
@@ -232,23 +293,38 @@ input CreateFileInput {
     base64: String!
 }
 
-
-
-
-
 #endregion
 
 # PAYMENTS ENDPOINTS
 #region
-type Payments {
+type PaymentIntents {
     id: ID!
     closed: Boolean!
-    paymentStatus: Statuses!
-    createdAt: String!
+    paymentStatus: PaymentStatus!
+    createdAt: Timestamp!
     stripeEventId: String!
     stripeApiVersion: String!
-    stripeWebhook: String # stringified JSON
-    stripePaymentIntent: String #stringified JSON
+    stripePaymentIntent: JSON!
+    audit: [PaymentIntentsAudit!]!
+}
+
+type IncomingPaymentWebhooks {
+    id: ID!
+    status: WebhookStatus!
+    data: JSON!
+    createdAt: Timestamp!
+    processedAt: Timestamp
+}
+
+type PaymentIntentsAudit {
+    id: ID!
+    snapshotAt: Timestamp!
+    # same as payment intent values
+    closed: Boolean!
+    paymentStatus: PaymentStatus!
+    stripeEventId: String!
+    stripeApiVersion: String!
+    stripePaymentIntent: JSON
 }
 
 input CreatePaymentInput {
@@ -266,20 +342,16 @@ input UpdatePaymentDetailsInput {
     confirmed: Boolean!
 }
 
-input ProcessPaymentInput{
+input ProcessPaymentInput {
     closed: Boolean
     status: ID
 }
 
 type LockPaymentPayload implements IBaseResponsePayload {
     description: String!
-    code: Int!
-    payment: Payments
+    code: ResponseCodes!
+    payment: PaymentIntents
 }
-
-
-
-
 
 #endregion
 
@@ -291,20 +363,28 @@ type Products {
     name: String!
     details: String!
     categories: [Categories!]!
+    variations: [ProductVariations!]!
+    createdBy: Users!
+    createdAt: Timestamp!
+    lastUpdatedBy: Users
+    lastUpdatedAt: Timestamp
+    images: [Files!] # list not required as item could not have an image (i.e. unpublished in progress)
+    deleted: Boolean!
+}
+
+type ProductVariations {
+    id: ID!
+    title: String!
     price: Float!
     stock: Int!
-    createdBy: Users!
-    createdAt: String!
-    lastUpdatedBy: Users
-    lastUpdatedAt: String
-    images: [Files!] # list not required as item could not have an image (i.e. unpublished in progress)
+    images: [Files!]
+    published: Boolean!
     deleted: Boolean!
 }
 
 input GetProductsInput {
     first: Int!
     offset: Int!
-    pageSize: Int
     categoryFilter: [ID!]
     search: String
     likedOnly: Boolean
@@ -312,7 +392,7 @@ input GetProductsInput {
     sort: String
 }
 
-type GetProductsPayload implements IBaseValidatedResponsePayload & BasePaginationPayload {
+type GetProductsPayload implements IBaseValidatedResponsePayload & PaginationPayload {
     products: [Products!]
     count: Int!
     totalCount: Int!
@@ -320,7 +400,7 @@ type GetProductsPayload implements IBaseValidatedResponsePayload & BasePaginatio
     totalPages: Int!
     next: Boolean!
     previous: Boolean!
-    code: Int!
+    code: ResponseCodes!
     conditionErrors: [String!]
     description: String
     validationErrors: [String!]
@@ -330,13 +410,19 @@ input CreateProductInput {
     name: String!
     details: String!
     categories: [ID!]!
+    variations: [CreateProductVariationInput!]!
+}
+
+input CreateProductVariationInput {
     price: Float!
     stock: Int!
-    images: [ID!] # list not required as item could not have an image (i.e. unpublished in progress)
+    title: String!
+    description: String!
+    images: [ID!]
 }
 
 type GetProductPayload implements IBaseResponsePayload {
-    code: Int!
+    code: ResponseCodes!
     description: String!
     product: Products
 }
@@ -350,36 +436,42 @@ input UpdateProductInput {
     stock: Int
     images: [ID!]
 }
-
-
-
-
-
 #endregion
 
 # Orders endpoints
 #region
 type Orders {
-    id: Int!
+    id: ID!
     client: Users
-    payments: [Payments!]
+    payments: [PaymentIntents!]
+    webhooks: [IncomingPaymentWebhooks!]
     orderDetails: [OrderDetails!]!
-    paymentStatus: Statuses!
-    orderStatus: Statuses!
-    createdAt: String!
+    paymentStatus: PaymentStatus!
+    orderStatus: OrderStatus!
+    createdAt: Timestamp!
+    orderStatusHistory: [OrderAudit!]!
 }
+
+type OrderAudit {
+    id: ID!
+    order: OrderStatus!
+    payment: PaymentStatus!
+    changeAt: Timestamp!
+}
+
 type OrderDetails {
     id: ID!
     order: Orders!
-    product: Int!
+    product: Products!
+    variation: ProductVariations!
     productQuantity: Int!
     pricePurchasedAt: Float!
 }
 
-type ListAllOrderdsPayload implements IBaseResponsePayload{
+type ListAllOrderdsPayload implements IBaseResponsePayload {
     orders: [Orders!]
     description: String!
-    code: Int!
+    code: ResponseCodes!
 }
 
 input CreateOrderInput {
@@ -389,17 +481,15 @@ input CreateOrderInput {
 
 type allOrderDetailsPayload implements IBaseResponsePayload {
     description: String!
-    code: Int!
+    code: ResponseCodes!
     orders: [Orders!]
 }
 
-type orderDetailsPayload implements IBaseResponsePayload{
+type orderDetailsPayload implements IBaseResponsePayload {
     order: Orders!
-    code: Int!
+    code: ResponseCodes!
     description: String!
 }
-
-
 
 #endregion
 
@@ -409,32 +499,48 @@ type Carts {
     id: ID!
     client: Users!
     product: Products!
+    variation: ProductVariations!
     productQuantity: Int!
-    createdAt: String!
+    createdAt: Timestamp!
 }
-type CartInfoPayload implements IBaseResponsePayload{
+type CartInfoPayload implements IBaseResponsePayload {
     cart: [Carts!]
-    code: Int!
+    code: ResponseCodes!
     description: String!
 }
 
+input AddToCartInput {
+    client: ID!
+    product: ID!
+    variation: ID!
+    quantity: Int!
+}
 
+input RemoveFromCartInput {
+    client: ID!
+    product: ID!
+    variation: ID!
+}
 
+input ModifyCartQuantity {
+    client: ID!
+    product: ID!
+    variation: ID!
+    newQuantity: Int!
+}
 
 #endregion
-
-
 
 # Mailer Service Endpoints
 #region
 type EmailQueue {
     id: ID!
-    queueStatus: Statuses!
+    queueStatus: QueueStatus!
     senderName: String
-    senderEmail: String!
+    senderEmail: Email!
     recipientName: String
-    recipientEmail: String!
-    replyTo: String
+    recipientEmail: Email!
+    replyTo: Email
     subject: String!
     textContent: String!
     htmlContent: String!
@@ -443,10 +549,10 @@ type EmailQueue {
 # POST Email Job
 input CreateEmailJobInput {
     senderName: String
-    senderEmail: String!
+    senderEmail: Email!
     recipientName: String
-    recipientEmail: String!
-    replyToEmail: String
+    recipientEmail: Email!
+    replyToEmail: Email
     subject: String
     textContent: String!
     htmlContent: String!
@@ -470,15 +576,11 @@ input UpdateEmailJobInput {
     jobId: ID!
     newStatus: ID!
 }
-type UpdateEmailJobPayload{
-    code: Int! # could error as item is already locked status
+type UpdateEmailJobPayload implements IBaseResponsePayload {
     description: String!
+    code: ResponseCodes!
     jobData: EmailQueue!
 }
-
-
-
-
 
 #endregion
 
@@ -488,7 +590,8 @@ type Likes {
     id: ID!
     client: Users!
     product: Products!
-    createdAt: String!
+    variation: ProductVariations!
+    createdAt: Timestamp!
 }
 # GET LIKES
 input GetLikesInput {
@@ -499,19 +602,16 @@ type LikesPayload {
     likes: Likes
 }
 
-
 # LIKE A PRODUCT and REMOVE A LIKED PRODUCT
 input LikeProductInput {
-    productLiked: ID!
+    product: ID!
+    variation: ID!
     user: ID!
 }
+# for convinience just say what product and variation to remove the like from, this saves handling the like ID on front.
 input RemoveLikeInput {
-    likeToRemove: ID!
-}
-type LikeOperationPayload {
-    errors: String
-    likeResultCode: Int!
-    likeResult : String
+    product: ID!
+    variation: ID!
 }
 
 #endregion
