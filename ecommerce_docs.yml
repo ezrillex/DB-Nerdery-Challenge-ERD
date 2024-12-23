@@ -13,9 +13,6 @@ components:
     bearer_system_auth:
       type: http
       scheme: bearer
-    public_no_auth:
-      type: http
-      scheme: basic
   responses:
     '401':
       description: 'The provided authentication token is not valid (user is not logged in or token expired). Or a parameter requires more permissions than the requestor has.'
@@ -39,8 +36,6 @@ components:
 paths:
   /auth/login:
     post:
-      security:
-        - public_no_auth: []
       tags:
         - Authentication
       summary: 'Authenticates user credentials with the server and provides the corresponding user token.'
@@ -59,7 +54,9 @@ paths:
       responses:
         '200':
           description: >-
-            credentials are valid, responds with user object. resets failed login attempts. Updates last login at. and clears the password reset timestamps and returns the session token for the user to authenticate to server in further requests.
+            credentials are valid, responds with token. resets failed login attempts. Updates last login at. and clears the password reset timestamps and returns the session token for the user to authenticate to server in further requests.
+            
+              NOTE: User object is not returned, included here for example. This is included inside the token payload.
           content:
             application/json:
               example:
@@ -78,7 +75,7 @@ paths:
         '429':
           $ref: '#/components/responses/429'
   /auth/logout:
-    post:
+    delete:
       tags:
         - Authentication
       security:
@@ -90,8 +87,8 @@ paths:
         
         This endpoint updates the 'last logged at' timestamp to record the user's logout. If multiple logout attempts are made, the request will fail. Additionally, the operation will fail if the user's login session has already expired.
       responses:
-        '200':
-          description: "logged out succesfully! clears session token"
+        '204':
+          description: "logged out succesfully! invalidates session token"
         '400':
           $ref: "#/components/responses/400"
         '401':
@@ -108,8 +105,6 @@ paths:
         
         
         This endpoint verifies whether the user has exceeded the limit of recovery attempts within a 24-hour period and proceeds with the recovery process if allowed. Excessive attempts within the time frame will result in limitations. As a publicly accessible API, it is subject to rate limiting.
-      security:
-        - public_no_auth: []
       requestBody:
         required: true
         content:
@@ -130,8 +125,6 @@ paths:
     post:
       tags:
         - Authentication
-      security:
-        - public_no_auth: []
       summary: "Updates the user's password."
       description: >-
         Auth: Public
@@ -155,12 +148,10 @@ paths:
           $ref: "#/components/responses/400"
         '429':
           $ref: '#/components/responses/429'
-  /users:
+  /auth/signup:
     post:
       tags:
         - Authentication
-      security:
-        - public_no_auth: []
       summary: 'Registers a new user. '
       description: >
         Auth: Public
@@ -186,10 +177,80 @@ paths:
           $ref: "#/components/responses/400"
         '429':
           $ref: '#/components/responses/429'
+  /users:
+    get:
+      tags:
+        - Authentication
+      summary: 'gets an user object. '
+      description: >
+        Auth: Public
+        
+        
+        Returns data of token user
+      security:
+        - bearer_user_auth: []
+      responses:
+        '200':
+          description: returns user object 
+          content:
+            application/json:
+              example:
+                first_name: Johns
+                last_name: Smiths
+                email: johns.smiths@email.com
+                password: password123$
+                repeat_password: password123$
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: "#/components/responses/401"
+        '403':
+          $ref: "#/components/responses/403"
+        '429':
+          $ref: '#/components/responses/429'  
+  /users/{id}:
+    get:
+      tags:
+        - Authentication
+      summary: 'gets an user object. '
+      description: >
+        Auth: Public
+        
+        
+        Returns data of a user, if manager/system allows other users. Errors if user tries to get other users and is not the required role.
+      security:
+        - bearer_user_auth: []
+        - bearer_system_auth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: returns user object 
+          content:
+            application/json:
+              example:
+                first_name: Johns
+                last_name: Smiths
+                email: johns.smiths@email.com
+                password: password123$
+                repeat_password: password123$
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: "#/components/responses/401"
+        '403':
+          $ref: "#/components/responses/403"
+        '429':
+          $ref: '#/components/responses/429'      
   /products:
     get:
       security:
-        - public_no_auth: []
+        - {}
         - bearer_user_auth: []
       tags:
         - Products
@@ -323,7 +384,7 @@ paths:
       tags:
         - Products
       security:
-        - public_no_auth: []
+        - {}
         - bearer_user_auth: []
       summary: 'Gets a specific product by id'
       description: |
@@ -421,7 +482,7 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        '204':
           description: 'delete successful OR product already deleted'
         '404':
           $ref: "#/components/responses/404"
@@ -431,7 +492,92 @@ paths:
           $ref: '#/components/responses/401'
         '403':
           $ref: "#/components/responses/403"
+  /products/{product_id}/variation:
+    post:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+      summary: 'Creates new product variation data'
+      description: |
+        Auth: Bearer
+        
+        
+        This endpoint allows creating product's variations. It requires Write Permission (Manager Update Permit) and only necessitates providing the product ID along with the variation data to create.
+      parameters:
+        - in: path
+          name: product_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              - title: 1000 GB - Titanium Color
+                price: 9999.99
+                stock: 3000
+                images: [6,7]
+                published: true
+      responses:
+        '200':
+          description: ' product variation created sucesfuly updated, returns the updated object, the api updates the timestamps and tracks the id of the user to the updated by, any omitted field is not updated.'
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: "#/components/responses/403"
+        '404':
+          $ref: "#/components/responses/404"
   /products/{product_id}/variation/{variation_id}:
+    put:
+      tags:
+        - Products
+      security:
+        - bearer_user_auth: []
+      summary: 'Updates product variation data'
+      description: |
+        Auth: Bearer
+        
+        
+        This endpoint allows updating product's variations. It requires Write Permission (Manager Update Permit) and only necessitates providing the product ID along with the variation data to create.
+      parameters:
+        - in: path
+          name: product_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: variation_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+                title: 1000 GB - Titanium Color
+                price: 9999.99
+                stock: 3000
+                images: [6,7]
+                published: true
+      responses:
+        '200':
+          description: ' product variation sucesfuly updated, returns the updated object, the api updates the timestamps and tracks the id of the user to the updated by, any omitted field is not updated.'
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: "#/components/responses/403"
+        '404':
+          $ref: "#/components/responses/404"
     delete:
       tags:
         - Products
@@ -442,7 +588,7 @@ paths:
         Auth: Bearer
         
         
-        This endpoint updates the "deleted" field of a specified product variation to true instead of performing a cascading delete. By marking the product as deleted, it is excluded from queries, except where its presence is required, such as in historical orders. This approach ensures that products remain identifiable for cleanup tasks once associated orders are finalized.
+        This endpoint updates the "deleted" field of a specified product variation to true instead of performing a cascading delete. By marking the product as deleted, it is excluded from queries, except where its presence is required, such as in historical orders. This approach ensures that products remain identifiable for cleanup tasks once associated orders are finalized. If only 1 variation remaining error out. disallow deleting it.
       parameters:
         - in: path
           name: product_id
@@ -457,7 +603,7 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        '204':
           description: 'delete successful OR variation already deleted'
         '404':
           $ref: "#/components/responses/404"
@@ -834,7 +980,7 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        '204':
           description: 'file deleted'
         '400':
           $ref: "#/components/responses/400"
@@ -846,7 +992,7 @@ paths:
           $ref: '#/components/responses/404'
         '500':
           description: something went wrong when deleting file from cdn. Error details...
-  /carts:
+  /cart_items:
     post:
       tags:
         - Orders
@@ -857,7 +1003,7 @@ paths:
         Auth: Bearer
         
         
-        'This endpoint adds a new entry to the cart table by associating a product ID with a user ID and specifying the quantity of the item in the cart. If the product already exists in the cart, subsequent requests will update the quantity or overwrite the existing entry with the same values. Repeated requests are allowed and will not create duplicate entries, only modify the existing one.'
+        'This endpoint adds a new entry to the cart table by associating a product ID with a user ID and specifying the quantity of the item in the cart. If the product+variation combo already exists in the cart, it will error. 
       requestBody:
         required: true
         content:
@@ -868,36 +1014,38 @@ paths:
               quantity: 1
       responses:
         '200':
-          description: ' product created sucesfuly, returns the cart object, the api adds the timestamps and the user that submitted the request'
+          description: ' product created sucesfuly'
         '400':
           $ref: "#/components/responses/400"
         '401':
           $ref: '#/components/responses/401'
         '403':
           $ref: "#/components/responses/403"
-  /carts/{user_id}:
+    
     get:
       tags:
         - Orders
       security:
         - bearer_user_auth: []
-        - bearer_system_auth: []
-      parameters:
-        - in: path
-          name: user_id
-          required: true
-          schema:
-            type: string
-            format: uuid
       summary: 'Retrieves all items in a cart'
       description: >
         Auth: Bearer
         
         
-        Manager and System can get other users cart. System for marketing, and managers for reports.
+        The cart includes the user in context, thus it infers which cart to get. 
       responses:
         '200':
-          description: 'cart filtered by user, in the case of system, the user can be another one'
+          description: 'Cart items'
+          content:
+            application/json:
+              example:
+                - product_id: uuid
+                  variation_id: uuid
+                  qty: 7
+                - product_id: uuid
+                  variation_id: uuid
+                  qty: 3
+                  
         '400':
           $ref: "#/components/responses/400"
         '401':
@@ -906,6 +1054,64 @@ paths:
           $ref: "#/components/responses/403"
         '404':
           $ref: '#/components/responses/404'
+  /cart_items/{id}:
+    put:
+      tags:
+        - Orders
+      security:
+        - bearer_user_auth: []
+      summary: 'Updates an entry for an item in the cart'
+      description: >
+        Auth: Bearer
+        
+        
+        'This endpoint updates an entry to the cart table. Subsequent requests will update the quantity aka overwrite the existing entry with the same value. Repeated requests are allowed and will not create duplicate entries, only modify the existing one.'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              new_quantity: 3
+      responses:
+        '200':
+          description: ' cart item updated sucesfuly'
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: "#/components/responses/403"
+    delete:
+      tags:
+        - Orders
+      security:
+        - bearer_user_auth: []
+      summary: 'Deletes an entry for an item in the cart'
+      description: >
+        Auth: Bearer
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: ' cart item deleted sucesfuly'
+        '400':
+          $ref: "#/components/responses/400"
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: "#/components/responses/403"
   /likes:
     post:
       tags:
@@ -934,7 +1140,7 @@ paths:
           $ref: '#/components/responses/401'
         '429':
           $ref: '#/components/responses/429'
-  /likes/{product_id}/variation/{variation_id}:
+  /likes/{id}:
     delete:
       tags:
         - Products
@@ -945,22 +1151,16 @@ paths:
         Auth: Bearer
         
         
-        404 happens if the delete is called again for the same ids. For reduced complexity the like is removed using the product variation id combo. This saves us like id handling.
+        404 happens if the delete is called again for the same ids.
       parameters:
         - in: path
-          name: product_id
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - in: path
-          name: variation_id
+          name: id
           required: true
           schema:
             type: string
             format: uuid
       responses:
-        '200':
+        '204':
           description: 'successfully deleted'
         '400':
           $ref: "#/components/responses/400"
