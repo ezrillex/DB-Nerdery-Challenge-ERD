@@ -133,7 +133,7 @@ Table permits {
   permit integer [not null]
 }
 
-Table cart {
+Table cart_items {
   id uuid [primary key]
   client_id uuid [not null]
   product_id uuid [not null]
@@ -222,8 +222,8 @@ Ref: likes.client_id > users.id
 Ref: likes.product_id > products.id
 Ref: users.id < products.created_by
 Ref: categories.id <> products.category_id
-Ref: cart.client_id - users.id
-Ref: cart.product_id > products.id
+Ref: cart_items.client_id - users.id
+Ref: cart_items.product_id > products.id
 Ref: orders.id < order_details.order_id
 Ref: users.id < orders.client_id
 Ref: email_queue.attachments <> files.id
@@ -237,6 +237,6 @@ Ref: "payment_intents"."id" < "payments_audit"."payment_id"
 Ref: "orders"."id" < "incoming_payment_webhooks"."order_id"
 Ref: "orders"."id" < "order_status_changes"."order_id"
 Ref: "orders"."id" < "payment_intents"."order_id"
-Ref: "cart"."variation_id" < "product_variations"."id"
+Ref: "cart_items"."variation_id" < "product_variations"."id"
 Ref: "order_details"."variation_id" < "product_variations"."id"
 Ref: "product_variations"."id" < "likes"."variation_id"
